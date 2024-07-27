@@ -1,0 +1,49 @@
+# Snakefile
+
+# Config file
+configfile: "config/config.yaml"
+
+# Define the final target files
+rule all:
+    input:
+        "results/combined_results.csv"  # The final output of the workflow
+        
+# Rule for running GSEApy
+rule run_gseapy:
+    input:
+        config["input_file"]
+    output:
+        "results/gseapy_results.csv"
+    conda:
+        "envs/environment.yaml"
+    shell:
+        """
+        python workflow/scripts/run_gseapy.py {input} {output}
+        """
+
+# Rule for running ClusterProfiler
+rule run_clusterprofiler:
+    input:
+        config["input_file"]
+    output:
+        "results/clusterprofiler_results.csv"
+    conda:
+        "envs/environment.yaml"
+    shell:
+        """
+        Rscript workflow/scripts/run_clusterprofiler.R {input} {output}
+        """
+
+# Rule to combine results
+rule combine_results:
+    input:
+        clusterprofiler="results/clusterprofiler_results.csv",
+        gseapy="results/gseapy_results.csv"
+    output:
+        "results/combined_results.csv"
+    conda:
+        "envs/environment.yaml"
+    shell:
+        """
+        python workflow/scripts/combine_results.py {input} {output}
+        """
