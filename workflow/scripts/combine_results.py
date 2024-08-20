@@ -7,8 +7,8 @@ clusterprofiler_file = sys.argv[1]
 gseapy_file = sys.argv[2]
 output_file = sys.argv[3]
 
-clusterprofiler_results = pd.read_csv(clusterprofiler_file)
-gseapy_results = pd.read_csv(gseapy_file)
+# clusterprofiler_results = pd.read_csv(clusterprofiler_file)
+# gseapy_results = pd.read_csv(gseapy_file)
 
 combined_results = pd.DataFrame([9,8,7,6,5])
 

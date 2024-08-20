@@ -163,3 +163,8 @@ cython_debug/
 
 # Ignore Snakemake directory
 .snakemake/
+
+# Ignore resources, results, config
+resources
+results
+config

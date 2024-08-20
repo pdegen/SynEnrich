@@ -1,6 +1,0 @@
-# config.yaml
-
-input_file: "resources/input_data.csv"
-# clusterprofiler_output: "results/clusterprofiler_results.csv"
-# gseapy_output: "results/gseapy_results.csv"
-# combined_output: "results/combined_results.csv"
