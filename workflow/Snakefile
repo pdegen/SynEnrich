@@ -3,17 +3,35 @@
 # Config file
 configfile: "config/config.yaml"
 
-# Define the final target files
+input_file = config["input_file"]
+project_name = config["project_name"]
+
+run_clusterprofiler = config["run_clusterprofiler"]
+run_gseapy = config["run_gseapy"]
+
+# Define result paths based on project name
+clusterprofiler_output = f"results/{project_name}/clusterprofiler.{project_name}.csv"
+gseapy_output = f"results/{project_name}/gseapy.{project_name}.csv"
+combined_output = f"results/{project_name}/combined.{project_name}.csv"
+
+# Define the final target files based on the method selected
 rule all:
     input:
-        "results/combined_results.csv"  # The final output of the workflow
-        
+        [
+            path for path in [
+                clusterprofiler_output if run_clusterprofiler else None,
+                gseapy_output if run_gseapy else None,
+                combined_output if run_clusterprofiler and run_gseapy else None,
+            ]
+            if path  # Filter out None values
+        ]
+
 # Rule for running GSEApy
 rule run_gseapy:
     input:
-        config["input_file"]
+        input_file
     output:
-        "results/gseapy_results.csv"
+        gseapy_output
     conda:
         "envs/environment.yaml"
     shell:
@@ -24,9 +42,9 @@ rule run_gseapy:
 # Rule for running ClusterProfiler
 rule run_clusterprofiler:
     input:
-        config["input_file"]
+        input_file
     output:
-        "results/clusterprofiler_results.csv"
+        clusterprofiler_output
     conda:
         "envs/environment.yaml"
     shell:
@@ -37,13 +55,13 @@ rule run_clusterprofiler:
 # Rule to combine results
 rule combine_results:
     input:
-        clusterprofiler="results/clusterprofiler_results.csv",
-        gseapy="results/gseapy_results.csv"
+        clusterprofiler = clusterprofiler_output,
+        gseapy = gseapy_output
     output:
-        "results/combined_results.csv"
+        "results/{project_name}/combined.{project_name}.csv"
     conda:
         "envs/environment.yaml"
     shell:
         """
-        python workflow/scripts/combine_results.py {input} {output}
+        python workflow/scripts/combine_results.py {input.clusterprofiler} {input.gseapy} {output}
         """
