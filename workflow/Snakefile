@@ -46,7 +46,7 @@ rule run_clusterprofiler:
     output:
         clusterprofiler_output
     conda:
-        "envs/environment.yaml"
+        "envs/environment.clusterprofiler.yaml"
     shell:
         """
         Rscript workflow/scripts/run_clusterprofiler.R {input} {output}
