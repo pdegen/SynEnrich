@@ -1,20 +1,12 @@
 # environment.yaml
 
-name: SynEnrich
+name: SynEnrich_ClusteProfiler
 channels:
   - conda-forge
   - bioconda
-  - nodefaults
+  - defaults
 dependencies:
-  - python=3.12.3
   - mamba
-  - pip
-  - pandas
-  - matplotlib
-  - seaborn
-  - snakemake
-  - gseapy
-  - rpy2
   - r-base=4.3.3
   - r-essentials
   - bioconductor-clusterprofiler=4.10.0
