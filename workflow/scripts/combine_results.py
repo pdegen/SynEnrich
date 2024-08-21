@@ -37,7 +37,7 @@ def combine_results(dfs: List[pd.DataFrame]) -> pd.DataFrame:
 
     return pd.concat([combined_df,summary_df], axis=1)
 
-def get_metrics():
+def get_metrics() -> List[str]:
     input_files = glob.glob(f"{savepath}/syn.*csv")
     metrics = []
     for file in input_files:
