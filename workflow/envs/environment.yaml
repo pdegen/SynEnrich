@@ -12,6 +12,9 @@ dependencies:
   - pandas
   - matplotlib
   - seaborn
+  - statsmodels
+  - scipy
+  - matplotlib-venn
   - snakemake
   - gseapy
   - matplotlib-venn
