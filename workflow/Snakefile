@@ -4,61 +4,68 @@
 configfile: "config/config.yaml"
 
 input_file = config["input_file"]
+import os
+os.system(f"pwd; ls {input_file}")
 project_name = config["project_name"]
+savepath = f"resources/{project_name}/"
+metrics = config["metrics"]
 
 run_clusterprofiler = config["run_clusterprofiler"]
 run_gseapy = config["run_gseapy"]
 
 # Define result paths based on project name
-clusterprofiler_output = f"results/{project_name}/clusterprofiler.{project_name}.csv"
-gseapy_output = f"results/{project_name}/gseapy.{project_name}.csv"
-combined_output = f"results/{project_name}/combined.{project_name}.csv"
+gseGO = "results/{project_name}/syn.gseGO.{metric}.{project_name}.csv"
+gseKEGG = "results/{project_name}/syn.gseKEGG.{metric}.{project_name}.csv"
+gseapy_output = "results/{project_name}/syn.gseapy.{metric}.{project_name}.csv"
+combined_output = "results/{project_name}/syn.combined.{project_name}.csv"
 
 # Define the final target files based on the method selected
 rule all:
     input:
         [
             path for path in [
-                clusterprofiler_output if run_clusterprofiler else None,
-                gseapy_output if run_gseapy else None,
-                combined_output if run_clusterprofiler and run_gseapy else None,
+                expand(gseGO, metric=metrics, project_name=project_name) if run_clusterprofiler else None,
+                expand(gseKEGG, metric=metrics, project_name=project_name) if run_clusterprofiler else None#,
+                #expand(gseapy_output, metric=metrics, project_name=project_name) if run_gseapy else None
             ]
             if path  # Filter out None values
         ]
 
-# Rule for running GSEApy
-rule run_gseapy:
-    input:
-        input_file
-    output:
-        gseapy_output
-    conda:
-        "envs/environment.yaml"
-    shell:
-        """
-        python workflow/scripts/run_gseapy.py {input} {output}
-        """
+# # Rule for running GSEApy
+# rule run_gseapy:
+#     input:
+#         input_file,
+#         savepath
+#     output:
+#         gseapy_output
+#     conda:
+#         "envs/environment.yaml"
+#     shell:
+#         """
+#         python workflow/scripts/run_gseapy.py {input[0]} {input[1]}
+#         """
 
 # Rule for running ClusterProfiler
 rule run_clusterprofiler:
     input:
         input_file
     output:
-        clusterprofiler_output
+        go = gseGO,
+        kegg = gseKEGG
     conda:
         "envs/environment.clusterprofiler.yaml"
     shell:
         """
-        Rscript workflow/scripts/run_clusterprofiler.R {input} {output}
+        Rscript workflow/scripts/run_clusterprofiler.R {input} {output.go} {output.kegg} {wildcards.metric}
         """
 
 # Rule to combine results
 rule combine_results:
     input:
-        clusterprofiler = clusterprofiler_output,
+        clusterprofiler = gseGO,
         gseapy = gseapy_output
     output:
-        "results/{project_name}/combined.{project_name}.csv"
+        combined_output
     conda:
         "envs/environment.yaml"
     shell:
