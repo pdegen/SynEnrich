@@ -4,10 +4,9 @@
 configfile: "config/config.yaml"
 
 input_file = config["input_file"]
-import os
-os.system(f"pwd; ls {input_file}")
 project_name = config["project_name"]
 metrics = config["metrics"]
+savepath = f"results/{project_name}"
 
 run_clusterprofiler = config["run_clusterprofiler"]
 run_gseapy = config["run_gseapy"]
@@ -16,19 +15,12 @@ run_gseapy = config["run_gseapy"]
 gseGO = "results/{project_name}/syn.gseGO.{metric}.{project_name}.csv"
 gseKEGG = "results/{project_name}/syn.gseKEGG.{metric}.{project_name}.csv"
 gseapy_output = "results/{project_name}/syn.gseapy.{metric}.{project_name}.csv"
-combined_output = "results/{project_name}/syn.combined.{project_name}.csv"
+combined_output = f"results/{project_name}/syn.combined.{project_name}.csv"
 
 # Define the final target files based on the method selected
 rule all:
     input:
-        [
-            path for path in [
-                expand(gseGO, metric=metrics, project_name=project_name) if run_clusterprofiler else None,
-                expand(gseKEGG, metric=metrics, project_name=project_name) if run_clusterprofiler else None#,
-                #expand(gseapy_output, metric=metrics, project_name=project_name) if run_gseapy else None
-            ]
-            if path  # Filter out None values
-        ]
+        combined_output
 
 # # Rule for running GSEApy
 # rule run_gseapy:
@@ -61,13 +53,19 @@ rule run_clusterprofiler:
 # Rule to combine results
 rule combine_results:
     input:
-        clusterprofiler = gseGO,
-        gseapy = gseapy_output
+        [
+            path for path in [
+                expand(gseGO, metric=metrics, project_name=project_name) if run_clusterprofiler else None,
+                expand(gseKEGG, metric=metrics, project_name=project_name) if run_clusterprofiler else None#,
+                #expand(gseapy_output, metric=metrics, project_name=project_name) if run_gseapy else None
+            ]
+            if path  # Filter out None values
+        ]
     output:
         combined_output
     conda:
         "envs/environment.yaml"
     shell:
         """
-        python workflow/scripts/combine_results.py {input.clusterprofiler} {input.gseapy} {output}
+        python workflow/scripts/combine_results.py {savepath} {combined_output}
         """
