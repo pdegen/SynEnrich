@@ -59,7 +59,7 @@ run_clusterProfiler <- function(df, outfile_go, outfile_kegg,
   if (!file.exists(outfile_kegg) || overwrite) {
 
     kegg <- gseKEGG(geneList     = geneList,
-                  organism        =  organism.KEGG,
+                  organism        = organism.KEGG,
                   minGSSize    = 10,
                   maxGSSize    = 500,
                   pvalueCutoff = 1,
