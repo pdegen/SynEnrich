@@ -7,7 +7,6 @@ input_file = config["input_file"]
 import os
 os.system(f"pwd; ls {input_file}")
 project_name = config["project_name"]
-savepath = f"resources/{project_name}/"
 metrics = config["metrics"]
 
 run_clusterprofiler = config["run_clusterprofiler"]

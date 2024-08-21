@@ -14,6 +14,7 @@ dependencies:
   - seaborn
   - snakemake
   - gseapy
+  - matplotlib-venn
   - rpy2
   - r-base=4.3.3
   - r-essentials
