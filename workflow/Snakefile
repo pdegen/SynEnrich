@@ -11,6 +11,10 @@ savepath = f"results/{project_name}"
 run_clusterprofiler = config["run_clusterprofiler"]
 run_gseapy = config["run_gseapy"]
 
+# ClusterProfiler
+keytype = config["keytype"]
+organismKEGG = config["organismKEGG"]
+
 # Define result paths based on project name
 gseGO = "results/{project_name}/syn.gseGO.{metric}.{project_name}.csv"
 gseKEGG = "results/{project_name}/syn.gseKEGG.{metric}.{project_name}.csv"
@@ -47,7 +51,7 @@ rule run_clusterprofiler:
         "envs/environment.clusterprofiler.yaml"
     shell:
         """
-        Rscript workflow/scripts/run_clusterprofiler.R {input} {output.go} {output.kegg} {wildcards.metric}
+        Rscript workflow/scripts/run_clusterprofiler.R {input} {output.go} {output.kegg} {wildcards.metric} {keytype} {organismKEGG}
         """
 
 # Rule to combine results
