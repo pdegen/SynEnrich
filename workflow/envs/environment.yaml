@@ -9,6 +9,7 @@ dependencies:
   - python=3.12.3
   - mamba
   - pip
+  - pyyaml
   - pandas
   - matplotlib
   - seaborn

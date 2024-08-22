@@ -3,6 +3,7 @@
 import os
 import sys
 import argparse
+import yaml
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,7 +11,7 @@ from scipy.stats import norm
 from statsmodels.stats.multitest import fdrcorrection
 from matplotlib_venn import venn2, venn3
 import glob
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict, Any
 
 def stouffer_combined_p_value(p_values: Union[List[float], np.ndarray], 
                               weights: Optional[Union[List[float], np.ndarray]] = None) -> float:
@@ -39,25 +40,29 @@ def combine_results(dfs: List[pd.DataFrame]) -> pd.DataFrame:
 
     return pd.concat([combined_df,summary_df], axis=1)
 
-def get_metrics() -> List[str]:
-    return ["logFC","neg_signed_logpval"]
-    input_files = glob.glob(f"{savepath}/syn.*csv")
-    metrics = []
-    for file in input_files:
-        metric = file.split(project_name)[-2].split(".")[-2]
-        metrics.append(metric)
-    return list(set(metrics))
-
-def get_libraries() -> List[str]:
-    return ["GO", "KEGG"]
+def load_config(file_path: str) -> Dict[str, Any]:
+    with open(file_path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
 
 def main(savepath, output_files, project_name, qval_thresh = 0.05):
 
-    ### Copy config file
-    os.system(f"cp config/config.yaml {savepath}/config.yaml")
+    config_file = f"{savepath}/config.yaml"
+    try:
+        config = load_config(config_file)
+    except FileNotFoundError:
+        print("No local config file found, trying to copy from root/config")
+        config = load_config("config/config.yaml")
+        config_project_name = config.get('project_name')
+        
+        if config_project_name == project_name:
+            ### Copy config file
+            os.system(f"cp config/config.yaml {config_file}")
+        else:
+            raise Exception("Root config doesn't match project_name; re-generate config.yaml")
 
-    metrics = get_metrics()
-    libraries = get_libraries()
+    metrics = config.get('metrics', [])
+    libraries = config.get('libraries', [])
 
     fig, axes = plt.subplots(1,2,figsize=(10,5))
     venn = venn2 if len(metrics) == 2 else venn3 if len(metrics) == 3 else None
