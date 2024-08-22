@@ -21,7 +21,7 @@ create_gene_converter <- function(df, OrgDb=org.Hs.eg.db) {
     # Convert to ENTREZ ID
     # We will lose some genes here because not all IDs will be converted
 
-    ids<-bitr(row.names(df), fromType = keytype, toType = "ENTREZID", OrgDb=OrgDb)
+    ids<-bitr(row.names(df), fromType = keytype, toType = c("ENTREZID","SYMBOL"), OrgDb=OrgDb)
     write.csv(ids, outfile, row.names=FALSE)
 }
 

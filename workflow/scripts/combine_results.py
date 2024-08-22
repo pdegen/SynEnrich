@@ -25,10 +25,14 @@ def stouffer_combined_p_value(p_values: Union[List[float], np.ndarray],
     combined_p_value = norm.cdf(-weighted_z)
     return combined_p_value
 
-def combine_results(dfs: List[pd.DataFrame]) -> pd.DataFrame:
+def combine_results2(dfs: List[pd.DataFrame]) -> pd.DataFrame:
 
     combined_df = pd.concat(dfs, axis=1, keys=[d.index.name for d in dfs])
     combined_df.columns = pd.MultiIndex.from_product([combined_df.columns.levels[0], combined_df.columns.levels[1]])
+
+    print("Before:", len(combined_df))
+    combined_df.dropna(axis=0, inplace=True)
+    print("After:", len(combined_df))
 
     summary_df = pd.DataFrame(index=combined_df.index)
     summary_df["enrichmentScore Mean"] = combined_df.xs("enrichmentScore", axis=1, level=1).mean(axis=1)
@@ -40,26 +44,55 @@ def combine_results(dfs: List[pd.DataFrame]) -> pd.DataFrame:
 
     return pd.concat([combined_df,summary_df], axis=1)
 
+## TO DO: refactor
+def combine_results(dfs) -> pd.DataFrame:
+
+    combined_df = pd.concat(dfs, axis=1, keys=[d.index.name for d in dfs])
+    combined_df.columns = pd.MultiIndex.from_product([combined_df.columns.levels[0], combined_df.columns.levels[1]])
+
+    # Calculate combined pvals only for common terms
+    combined_df_common = combined_df.dropna(axis=0)
+    summary_df = pd.DataFrame(index=combined_df_common.index)
+    summary_df["enrichmentScore Mean"] = combined_df_common.xs("enrichmentScore", axis=1, level=1).mean(axis=1)
+    summary_df["enrichmentScore SD"] = combined_df_common.xs("enrichmentScore", axis=1, level=1).std(axis=1)
+    summary_df["Stouffer pvalue"] = combined_df_common.xs("pvalue", axis=1, level=1).apply(stouffer_combined_p_value, axis=1)
+    summary_df["Stouffer FDR"] = fdrcorrection(summary_df["Stouffer pvalue"], )[1]
+    summary_df.columns = pd.MultiIndex.from_product([["Combined"], summary_df.columns])
+    summary_df = pd.concat([combined_df_common,summary_df], axis=1)
+
+    # Add remaining terms that are not common to all tools
+    combined_df_uncommon = combined_df.loc[combined_df.index.difference(combined_df_common.index)]
+    summary_df_uncommon = pd.DataFrame(index=combined_df_uncommon.index)
+    summary_df_uncommon["enrichmentScore Mean"] = combined_df_uncommon.xs("enrichmentScore", axis=1, level=1).mean(axis=1)
+    summary_df_uncommon["enrichmentScore SD"] = combined_df_uncommon.xs("enrichmentScore", axis=1, level=1).std(axis=1)
+    summary_df_uncommon["Stouffer pvalue"] = np.nan
+    summary_df_uncommon["Stouffer pvalue"] = np.nan
+    summary_df_uncommon.columns = pd.MultiIndex.from_product([["Combined"], summary_df_uncommon.columns])
+    summary_df_uncommon = pd.concat([combined_df_uncommon,summary_df_uncommon], axis=1)
+    
+    summary_df = pd.concat([summary_df, summary_df_uncommon], axis=0)
+
+    def combine_descriptions(row):
+        descriptions = row.dropna().unique()
+        return ', '.join(descriptions) if descriptions.size > 0 else np.nan
+
+    summary_df['Description'] = summary_df.loc[:, pd.IndexSlice[:, 'Description']].apply(combine_descriptions, axis=1)
+    summary_df.drop("Description", level=1, axis=1, inplace=True)
+    
+    return summary_df
+
 def load_config(file_path: str) -> Dict[str, Any]:
     with open(file_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
 
-def main(savepath, output_files, project_name):
+def main(savepath: str, output_files: List[str], project_name: str) -> None:
 
+    # Get latest config file
     config_file = f"{savepath}/config.yaml"
-    try:
-        config = load_config(config_file)
-    except FileNotFoundError:
-        print("No local config file found, trying to copy from root/config")
-        config = load_config("config/config.yaml")
-        config_project_name = config.get('project_name')
-        
-        if config_project_name == project_name:
-            ### Copy config file
-            os.system(f"cp config/config.yaml {config_file}")
-        else:
-            raise Exception("Root config doesn't match project_name; re-generate config.yaml")
+    os.system(f"cp config/config.yaml {config_file}")
+    config = load_config(config_file)
+
 
     metrics = config.get('metrics', [])
     libraries = config.get('libraries', [])
@@ -81,7 +114,6 @@ def main(savepath, output_files, project_name):
         output_files_lib = [o for o in  output_files if library in o][0] # TO DO: careful
 
         for tool in tools:
-            
             for file in input_files:
 
                 if library not in file or tool not in file: 
@@ -90,15 +122,22 @@ def main(savepath, output_files, project_name):
                 metric = [m for m in metrics if m in file][0]  # TO DO: careful
                 tab = pd.read_csv(file, index_col=0)
                 tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
-                tab["Signed_Term"] = tab.index + "_" + tab["Direction"]
-                tab.index.name = tool + "_" + metric # hacky
+                tab["Signed_Term"] = tab.index + "." + tab["Direction"]
+
+                if library == "GO":
+                    if tab.index.name != "ID":
+                        tab.index = tab["ID"]
+                elif library == "KEGG":
+                    tab.index = tab["Description"] # gseapy doesn't store KEGG IDs...
+                else:
+                    raise Exception("Library not supported:", library)
+                    
+                tab.index.name = tool + "." + metric # hacky
                 tab_dict[tab.index.name] = tab
         
         ### Combine results
-        dfs = [d[["enrichmentScore","pvalue"]] for d in tab_dict.values()]
+        dfs = [d[["enrichmentScore","pvalue","Description"]] for d in tab_dict.values()]
         summary_df = combine_results(dfs)
-
-        summary_df["Description"] = tab_dict[tab.index.name].loc[summary_df.index,"Description"]
         summary_df.to_csv(output_files_lib, index=False)
 
 if __name__ == "__main__":
