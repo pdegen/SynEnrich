@@ -1,14 +1,19 @@
-library(clusterProfiler)
+suppressMessages(library(clusterProfiler))
 
 args <- commandArgs(trailingOnly = TRUE)
 input_file <- args[1]
-outfile_go <- args[2]
-outfile_kegg <- args[3]
+keytype <- args[2]
+organismKEGG <- args[3]
 metric <- args[4]
-keytype <- args[5]
-organismKEGG <- args[6]
+outfile_go <- args[5]
+outfile_kegg <- args[6]
 
+print(paste("Args:",args))
 print(paste("Reading clsuterProfiler input:", input_file))
+
+#metric <- strsplit(basename(outfile_go), "syn.clusterProfiler\\.")[[1]][2]
+#metric <- strsplit(metric, "\\.")[[1]][1]
+print(paste("Metric:", metric))
 
 df <- read.csv(input_file, row.names = 1)
 
@@ -44,8 +49,9 @@ run_clusterProfiler <- function(df, outfile_go, outfile_kegg,
   names(geneList) <- df$ENTREZID
   geneList = sort(geneList, decreasing = TRUE)
 
-  if (!file.exists(outfile_go) || overwrite) {
+  if ((length(outfile_go) > 0 && !file.exists(outfile_go)) || overwrite) {
 
+    print("Running GO...")
     ego3 <- gseGO(geneList     = geneList,
                   OrgDb        = organism.GO,
                   ont          = "ALL", ## CC MF BP
@@ -56,10 +62,12 @@ run_clusterProfiler <- function(df, outfile_go, outfile_kegg,
                   seed = TRUE,
                   verbose = FALSE)
     write.csv(ego3,outfile_go)
+    print(paste("Wrote GO to:", outfile_go))
   }
 
-  if (!file.exists(outfile_kegg) || overwrite) {
+  if ((length(outfile_kegg) > 0 && !file.exists(outfile_kegg)) || overwrite)  {
 
+    print("Running KEGG...")
     kegg <- gseKEGG(geneList     = geneList,
                   organism        = organism.KEGG,
                   minGSSize    = 10,
@@ -69,6 +77,7 @@ run_clusterProfiler <- function(df, outfile_go, outfile_kegg,
                   seed = TRUE,
                   verbose = FALSE)
     write.csv(kegg,outfile_kegg)
+    print(paste("Wrote KEGG to:", outfile_kegg))
   }
 
   end_time <- Sys.time()
@@ -92,15 +101,15 @@ convert_df <- function(df, OrgDb=org.Hs.eg.db) {
 }
 
 if (organismKEGG == "hsa") {
-    library(org.Hs.eg.db)
+    suppressMessages(library(org.Hs.eg.db))
     OrgDb <- org.Hs.eg.db
 } else if (organismKEGG == "mmu") {
-    library(org.Mm.eg.db)
+    suppressMessages(library(org.Mm.eg.db))
     OrgDb <- org.Mm.eg.db
 } else {
     stop(paste("Organism not yet implemented:", organismKEGG))
 }
 
 df <- convert_df(df, OrgDb=OrgDb)
-print(head(df))
+#print(head(df))
 run_clusterProfiler(df, outfile_go, outfile_kegg, metric, overwrite=FALSE, organism.KEGG=organismKEGG, organism.GO = OrgDb) 

@@ -6,70 +6,53 @@ configfile: "config/config.yaml"
 input_file = config["input_file"]
 project_name = config["project_name"]
 metrics = config["metrics"]
+libraries = config["libraries"]
+tools = config["tools"]
 savepath = f"results/{project_name}"
-
-run_clusterprofiler = config["run_clusterprofiler"]
-run_gseapy = config["run_gseapy"]
 
 # ClusterProfiler
 keytype = config["keytype"]
 organismKEGG = config["organismKEGG"]
 
 # Define result paths based on project name
-gseGO = "results/{project_name}/syn.gseGO.{metric}.{project_name}.csv"
-gseKEGG = "results/{project_name}/syn.gseKEGG.{metric}.{project_name}.csv"
-gseapy_output = "results/{project_name}/syn.gseapy.{metric}.{project_name}.csv"
-combined_output = f"results/{project_name}/syn.combined.{project_name}.csv"
+gsea_output = f"results/{project_name}/syn.{{tool}}.{{metric}}.{{library}}.{project_name}.csv"
+combined_output = f"results/{project_name}/syn.combined.{{library}}.{project_name}.csv"
+
+# Generate the outputs based on conditions
+clusterprofiler_go_output = expand(gsea_output, metric=metrics, library="GO", tool="clusterProfiler") if "clusterProfiler" in tools and "GO" in libraries else []
+clusterprofiler_kegg_output = expand(gsea_output, metric=metrics, library="KEGG", tool="clusterProfiler") if "clusterProfiler" in tools and "KEGG" in libraries else []
+
+all_intermediate_outputs = expand(gsea_output, metric=metrics, library=libraries, tool=tools)
+final_outputs = expand(combined_output, library=libraries)
 
 # Define the final target files based on the method selected
 rule all:
     input:
-        combined_output
-
-# # Rule for running GSEApy
-# rule run_gseapy:
-#     input:
-#         input_file,
-#         savepath
-#     output:
-#         gseapy_output
-#     conda:
-#         "envs/environment.yaml"
-#     shell:
-#         """
-#         python workflow/scripts/run_gseapy.py {input[0]} {input[1]}
-#         """
+        final_outputs
 
 # Rule for running ClusterProfiler
 rule run_clusterprofiler:
     input:
         input_file
     output:
-        go = gseGO,
-        kegg = gseKEGG
+        go = f"results/{project_name}/syn.clusterProfiler.{{metric}}.GO.{project_name}.csv" if "clusterProfiler" in tools and "GO" in libraries else "",
+        kegg = f"results/{project_name}/syn.clusterProfiler.{{metric}}.KEGG.{project_name}.csv" if "clusterProfiler" in tools and "KEGG" in libraries else ""
     conda:
         "envs/environment.clusterprofiler.yaml"
     shell:
         """
-        Rscript workflow/scripts/run_clusterprofiler.R {input} {output.go} {output.kegg} {wildcards.metric} {keytype} {organismKEGG}
+        Rscript workflow/scripts/run_clusterprofiler.R {input} {keytype} {organismKEGG} {wildcards.metric} {output.go} {output.kegg}
         """
 
 # Rule to combine results
 rule combine_results:
     input:
-        [
-            path for path in [
-                expand(gseGO, metric=metrics, project_name=project_name) if run_clusterprofiler else None,
-                expand(gseKEGG, metric=metrics, project_name=project_name) if run_clusterprofiler else None#,
-                #expand(gseapy_output, metric=metrics, project_name=project_name) if run_gseapy else None
-            ]
-            if path  # Filter out None values
-        ]
+        all_intermediate_outputs
     output:
-        combined_output
+        final_outputs
     conda:
         "envs/environment.yaml"
     shell:
         """
-        python workflow/scripts/combine_results.py {savepath} {combined_output}
+        python workflow/scripts/combine_results.py {savepath} {final_outputs}
         """
