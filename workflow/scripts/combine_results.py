@@ -79,6 +79,18 @@ def combine_results(dfs) -> pd.DataFrame:
     summary_df['Description'] = summary_df.loc[:, pd.IndexSlice[:, 'Description']].apply(combine_descriptions, axis=1)
     summary_df.drop("Description", level=1, axis=1, inplace=True)
     
+    # Better multiindex
+    lvl0 = summary_df.columns.get_level_values(level = 0)
+    lvl0 = [val.split(".")[0] for val in lvl0]
+    lvl00 = summary_df.columns.get_level_values(level = 0)
+    lvl1 = [val.split(".")[1] if len(val.split("."))>1 else "nan" for val in lvl00]
+    lvl2 = list(summary_df.columns.get_level_values(level = 1))
+    lvl0[-1] = "nan"
+    lvl2[-1] = "Description"
+
+    tuples = list(zip(*[lvl0,lvl1,lvl2]))
+    summary_df.columns = pd.MultiIndex.from_tuples(tuples, names=["Tool","Metric","Value"])
+
     return summary_df
 
 def load_config(file_path: str) -> Dict[str, Any]:
@@ -138,7 +150,7 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
         ### Combine results
         dfs = [d[["enrichmentScore","pvalue","Description"]] for d in tab_dict.values()]
         summary_df = combine_results(dfs)
-        summary_df.to_csv(output_files_lib, index=False)
+        summary_df.to_csv(output_files_lib, index=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Combine results and save output.")
