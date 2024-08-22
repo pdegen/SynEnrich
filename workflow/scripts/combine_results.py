@@ -45,7 +45,7 @@ def load_config(file_path: str) -> Dict[str, Any]:
         config = yaml.safe_load(file)
     return config
 
-def main(savepath, output_files, project_name, qval_thresh = 0.05):
+def main(savepath, output_files, project_name):
 
     config_file = f"{savepath}/config.yaml"
     try:
@@ -63,66 +63,43 @@ def main(savepath, output_files, project_name, qval_thresh = 0.05):
 
     metrics = config.get('metrics', [])
     libraries = config.get('libraries', [])
-
-    fig, axes = plt.subplots(1,2,figsize=(10,5))
-    venn = venn2 if len(metrics) == 2 else venn3 if len(metrics) == 3 else None
+    tools = config.get('tools', [])
 
     input_files = glob.glob(f"{savepath}/syn.*csv")
 
     if len(input_files) < 2:
         print("Savepath:", savepath)
-        print("Fewer than 2 input_files found, saving empty output file...")
-        pd.DataFrame().to_csv(output_files, index=False)
+        print("Fewer than 2 input_files found, nothing to combine...")
         return
     else:
         print(f"Found {len(input_files)} input files:\n",*[o+"\n" for o in input_files])
 
-    for ax, library in zip(axes, libraries):
-        
+    for library in libraries:
+
         tab_dict = dict()
-        sig_dict = dict()
 
         output_files_lib = [o for o in  output_files if library in o][0] # TO DO: careful
 
-        for file in input_files:
+        for tool in tools:
+            
+            for file in input_files:
 
-            if library not in file: 
-                continue
+                if library not in file or tool not in file: 
+                    continue
 
-            #metric = file.split(project_name)[-2].split(".")[-2]
-            metric = [m for m in metrics if m in file][0]  # TO DO: careful
-            print(metric)
-            tab = pd.read_csv(file, index_col=0)
-            tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
-            tab["Signed_Term"] = tab.index + "_" + tab["Direction"]
-            tab.index.name = metric # hacky
-            tab_dict[metric] = tab
-            sig_dict[metric] = tab[tab["qvalue"] < qval_thresh]["Signed_Term"]
-            print(file, len(sig_dict[metric]))
-
-        inter = set.intersection(*[set(s) for s in sig_dict.values()])
-        union = set.union(*[set(s) for s in sig_dict.values()])
-        jacc = len(inter)/len(union) if len(union) else np.nan
-
-        if venn:
-            venn([set(s) for s in sig_dict.values()], set_labels=sig_dict.keys(), ax=ax)
-            ax.set(title=f"{library}\nUnion = {len(union)} | Jaccard = {jacc:.2f}")
-
-        else:
-            print(f"{library}\nInter = {len(inter)} |Union = {len(union)} | Jaccard = {jacc:.2f}")
-
-
+                metric = [m for m in metrics if m in file][0]  # TO DO: careful
+                tab = pd.read_csv(file, index_col=0)
+                tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
+                tab["Signed_Term"] = tab.index + "_" + tab["Direction"]
+                tab.index.name = tool + "_" + metric # hacky
+                tab_dict[tab.index.name] = tab
+        
         ### Combine results
         dfs = [d[["enrichmentScore","pvalue"]] for d in tab_dict.values()]
         summary_df = combine_results(dfs)
 
-        summary_df["Description"] = tab_dict[metrics[0]].loc[summary_df.index,"Description"]
+        summary_df["Description"] = tab_dict[tab.index.name].loc[summary_df.index,"Description"]
         summary_df.to_csv(output_files_lib, index=False)
-
-    if venn:
-        fig.tight_layout()
-        fig.savefig(f"{savepath}/syn.venn.{project_name}.pdf")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Combine results and save output.")
