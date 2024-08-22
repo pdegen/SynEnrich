@@ -1,6 +1,8 @@
 # scripts/combine_results.py
 
+import os
 import sys
+import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -38,6 +40,7 @@ def combine_results(dfs: List[pd.DataFrame]) -> pd.DataFrame:
     return pd.concat([combined_df,summary_df], axis=1)
 
 def get_metrics() -> List[str]:
+    return ["logFC","neg_signed_logpval"]
     input_files = glob.glob(f"{savepath}/syn.*csv")
     metrics = []
     for file in input_files:
@@ -45,32 +48,45 @@ def get_metrics() -> List[str]:
         metrics.append(metric)
     return list(set(metrics))
 
-def main(qval_thresh = 0.05):
+def get_libraries() -> List[str]:
+    return ["GO", "KEGG"]
+
+def main(savepath, output_files, project_name, qval_thresh = 0.05):
+
+    ### Copy config file
+    os.system(f"cp config/config.yaml {savepath}/config.yaml")
 
     metrics = get_metrics()
+    libraries = get_libraries()
 
     fig, axes = plt.subplots(1,2,figsize=(10,5))
     venn = venn2 if len(metrics) == 2 else venn3 if len(metrics) == 3 else None
 
     input_files = glob.glob(f"{savepath}/syn.*csv")
 
-    if len(input_files) < 1:
+    if len(input_files) < 2:
         print("Savepath:", savepath)
-        raise Exception("No input_files found, returning...")
+        print("Fewer than 2 input_files found, saving empty output file...")
+        pd.DataFrame().to_csv(output_files, index=False)
+        return
     else:
         print(f"Found {len(input_files)} input files:\n",*[o+"\n" for o in input_files])
 
-    for ax, gse in zip(axes, ["gseGO", "gseKEGG"]):
+    for ax, library in zip(axes, libraries):
         
         tab_dict = dict()
         sig_dict = dict()
 
+        output_files_lib = [o for o in  output_files if library in o][0] # TO DO: careful
+
         for file in input_files:
 
-            if gse not in file: 
+            if library not in file: 
                 continue
 
-            metric = file.split(project_name)[-2].split(".")[-2]
+            #metric = file.split(project_name)[-2].split(".")[-2]
+            metric = [m for m in metrics if m in file][0]  # TO DO: careful
+            print(metric)
             tab = pd.read_csv(file, index_col=0)
             tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
             tab["Signed_Term"] = tab.index + "_" + tab["Direction"]
@@ -85,10 +101,10 @@ def main(qval_thresh = 0.05):
 
         if venn:
             venn([set(s) for s in sig_dict.values()], set_labels=sig_dict.keys(), ax=ax)
-            ax.set(title=f"{gse}\nUnion = {len(union)} | Jaccard = {jacc:.2f}")
+            ax.set(title=f"{library}\nUnion = {len(union)} | Jaccard = {jacc:.2f}")
 
         else:
-            print(f"{gse}\nInter = {len(inter)} |Union = {len(union)} | Jaccard = {jacc:.2f}")
+            print(f"{library}\nInter = {len(inter)} |Union = {len(union)} | Jaccard = {jacc:.2f}")
 
 
         ### Combine results
@@ -96,18 +112,28 @@ def main(qval_thresh = 0.05):
         summary_df = combine_results(dfs)
 
         summary_df["Description"] = tab_dict[metrics[0]].loc[summary_df.index,"Description"]
-        summary_df.to_csv(output_file, index=False)
+        summary_df.to_csv(output_files_lib, index=False)
 
     if venn:
         fig.tight_layout()
-        fig.savefig(output_file.replace(".csv",".pdf"))
+        fig.savefig(f"{savepath}/syn.venn.{project_name}.pdf")
 
 
 if __name__ == "__main__":
-    savepath = sys.argv[1]
-    output_file = sys.argv[2]
+    parser = argparse.ArgumentParser(description="Combine results and save output.")
+    
+    # Positional argument for the save path
+    parser.add_argument("savepath", type=str, help="Path to save the combined results.")
+    
+    # Positional argument for a variable number of final outputs
+    parser.add_argument("final_outputs", nargs='+', help="List of final output files.")
+    
+    args = parser.parse_args()
+    savepath = args.savepath
+    output_files = args.final_outputs
     project_name = savepath.split("results/")[1]
-    main()
+
+    main(savepath, output_files, project_name)
 
 
 
