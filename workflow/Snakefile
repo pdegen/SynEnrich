@@ -24,6 +24,8 @@ combined_output = f"results/{project_name}/syn.combined.{{library}}.{project_nam
 # Generate the outputs based on conditions
 clusterprofiler_go_output = expand(gsea_output, metric=metrics, library="GO", tool="clusterProfiler") if "clusterProfiler" in tools and "GO" in libraries else []
 clusterprofiler_kegg_output = expand(gsea_output, metric=metrics, library="KEGG", tool="clusterProfiler") if "clusterProfiler" in tools and "KEGG" in libraries else []
+gseapy_go_output = expand(gsea_output, metric=metrics, library="GO", tool="gseapy") if "gseapy" in tools and "GO" in libraries else []
+gseapy_kegg_output = expand(gsea_output, metric=metrics, library="KEGG", tool="gseapy") if "gseapy" in tools and "KEGG" in libraries else []
 
 all_intermediate_outputs = expand(gsea_output, metric=metrics, library=libraries, tool=tools)
 final_outputs = expand(combined_output, library=libraries)
@@ -31,7 +33,8 @@ final_outputs = expand(combined_output, library=libraries)
 # Define the final target files based on the method selected
 rule all:
     input:
-        final_outputs
+        final_outputs,
+        all_intermediate_outputs
 
 
 # Rule for creating gene name converter table
@@ -60,6 +63,21 @@ rule run_clusterprofiler:
         """
         Rscript workflow/scripts/run_clusterprofiler.R {input} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {output.go} {output.kegg}
         """
+
+# Rule for running gseapy
+rule run_gseapy:
+    input:
+        input_file
+    output:
+        go = f"results/{project_name}/syn.gseapy.{{metric}}.GO.{project_name}.csv" if "gseapy" in tools and "GO" in libraries else "",
+        kegg = f"results/{project_name}/syn.gseapy.{{metric}}.KEGG.{project_name}.csv" if "gseapy" in tools and "KEGG" in libraries else ""
+    conda:
+        "envs/environment.yaml"
+    shell:
+        """
+        python workflow/scripts/run_gseapy.py {input} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {output.go} {output.kegg}
+        """
+
 
 # Rule to combine results
 rule combine_results:
