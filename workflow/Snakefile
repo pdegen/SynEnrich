@@ -10,6 +10,9 @@ libraries = config["libraries"]
 tools = config["tools"]
 savepath = f"results/{project_name}"
 
+# Gene conversion
+gene_converter = f"results/{project_name}/gene_converter.csv"
+
 # ClusterProfiler
 keytype = config["keytype"]
 organismKEGG = config["organismKEGG"]
@@ -30,6 +33,20 @@ rule all:
     input:
         final_outputs
 
+
+# Rule for creating gene name converter table
+rule run_geneconverter:
+    input:
+        input_file
+    output:
+        gene_converter
+    conda:
+        "envs/environment.clusterprofiler.yaml"
+    shell:
+        """
+        Rscript workflow/scripts/run_geneconverter.R {input} {keytype} {organismKEGG} {gene_converter}
+        """
+
 # Rule for running ClusterProfiler
 rule run_clusterprofiler:
     input:
@@ -41,7 +58,7 @@ rule run_clusterprofiler:
         "envs/environment.clusterprofiler.yaml"
     shell:
         """
-        Rscript workflow/scripts/run_clusterprofiler.R {input} {keytype} {organismKEGG} {wildcards.metric} {output.go} {output.kegg}
+        Rscript workflow/scripts/run_clusterprofiler.R {input} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {output.go} {output.kegg}
         """
 
 # Rule to combine results

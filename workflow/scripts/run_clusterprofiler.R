@@ -1,15 +1,17 @@
 suppressMessages(library(clusterProfiler))
 
 args <- commandArgs(trailingOnly = TRUE)
+print(paste("Args:",args))
+
 input_file <- args[1]
 keytype <- args[2]
 organismKEGG <- args[3]
-metric <- args[4]
-outfile_go <- args[5]
-outfile_kegg <- args[6]
+gene_converter_file <- args[4]
+metric <- args[5]
+outfile_go <- args[6]
+outfile_kegg <- args[7]
 
-print(paste("Args:",args))
-print(paste("Reading clsuterProfiler input:", input_file))
+print(paste("Reading clusterProfiler input:", input_file))
 
 #metric <- strsplit(basename(outfile_go), "syn.clusterProfiler\\.")[[1]][2]
 #metric <- strsplit(metric, "\\.")[[1]][1]
@@ -87,12 +89,8 @@ run_clusterProfiler <- function(df, outfile_go, outfile_kegg,
 convert_df <- function(df, OrgDb=org.Hs.eg.db) {
 
   if ("ENTREZID" %in% names(df)) return(df)
-  
   df[[keytype]] <- row.names(df)
-  # Convert to ENTREZ ID
-  # We will lose some genes here because not all IDs will be converted
-
-  ids<-bitr(row.names(df), fromType = keytype, toType = "ENTREZID", OrgDb=OrgDb)
+  ids <- read.csv(gene_converter_file)
   df <- merge(df, ids, by = keytype, all.x = TRUE)
   print(paste("Before",nrow(df)))
   df <- na.omit(df)
