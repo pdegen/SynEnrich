@@ -55,11 +55,17 @@ def run_gseapy(input, ontology, outdir=None, **kwargs):
 
 def main():
     tab = pd.read_csv(input_file, index_col=0)
-    gene_table = pd.read_csv(gene_table_file, index_col=0)
-    tab[keytype] = tab.index
-    tab = tab.merge(gene_table, how='left', on=keytype)
-    tab.dropna(axis=0, inplace=True)
-    tab.set_index("SYMBOL", inplace=True)
+
+    if tab.index.name != "SYMBOL":
+        gene_table = pd.read_csv(gene_table_file, index_col=0)
+        tab[keytype] = tab.index
+        tab = tab.merge(gene_table, how='left', on=keytype)
+        tab.dropna(axis=0, inplace=True)
+        tab.set_index("SYMBOL", inplace=True)
+    else:
+        # https://gseapy.readthedocs.io/en/latest/faq.html#q-why-gene-symbols-in-enrichr-library-are-all-upper-cases-for-mouse-fly-fish-worm
+        tab.index = tab.index.str.upper() # Enrichr supports only upper case
+
     run_gseapy_multi(tab, metric)
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 suppressMessages(library(clusterProfiler))
 
 args <- commandArgs(trailingOnly = TRUE)
-print(paste("Args:",args))
+#print(paste("Args:",args))
 
 input_file <- args[1]
 keytype <- args[2]

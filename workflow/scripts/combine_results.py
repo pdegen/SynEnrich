@@ -25,25 +25,6 @@ def stouffer_combined_p_value(p_values: Union[List[float], np.ndarray],
     combined_p_value = norm.cdf(-weighted_z)
     return combined_p_value
 
-def combine_results2(dfs: List[pd.DataFrame]) -> pd.DataFrame:
-
-    combined_df = pd.concat(dfs, axis=1, keys=[d.index.name for d in dfs])
-    combined_df.columns = pd.MultiIndex.from_product([combined_df.columns.levels[0], combined_df.columns.levels[1]])
-
-    print("Before:", len(combined_df))
-    combined_df.dropna(axis=0, inplace=True)
-    print("After:", len(combined_df))
-
-    summary_df = pd.DataFrame(index=combined_df.index)
-    summary_df["enrichmentScore Mean"] = combined_df.xs("enrichmentScore", axis=1, level=1).mean(axis=1)
-    summary_df["enrichmentScore SD"] = combined_df.xs("enrichmentScore", axis=1, level=1).std(axis=1)
-    summary_df["Stouffer pvalue"] = combined_df.xs("pvalue", axis=1, level=1).apply(stouffer_combined_p_value, axis=1)
-    summary_df["Stouffer FDR"] = fdrcorrection(summary_df["Stouffer pvalue"], )[1]
-
-    summary_df.columns = pd.MultiIndex.from_product([["Combined"], summary_df.columns])
-
-    return pd.concat([combined_df,summary_df], axis=1)
-
 ## TO DO: refactor
 def combine_results(dfs) -> pd.DataFrame:
 
@@ -110,7 +91,7 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
     libraries = config.get('libraries', [])
     tools = config.get('tools', [])
 
-    input_files = glob.glob(f"{savepath}/syn.*csv")
+    input_files = glob.glob(f"{savepath}/syn.*[tc]sv")
 
     if len(input_files) < 2:
         print("Savepath:", savepath)
@@ -132,7 +113,10 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
                     continue
 
                 metric = [m for m in metrics if m in file][0]  # TO DO: careful
-                tab = pd.read_csv(file, index_col=0)
+
+                sep = "\t" if os.path.splitext(file)[-1] == ".tsv" else ","
+                tab = pd.read_csv(file, index_col=0, sep = sep)
+
                 tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
                 tab["Signed_Term"] = tab.index + "." + tab["Direction"]
 
@@ -153,6 +137,9 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
         summary_df.to_csv(output_files_lib, index=True)
 
 if __name__ == "__main__":
+
+    pd.options.mode.copy_on_write = True
+
     parser = argparse.ArgumentParser(description="Combine results and save output.")
     
     # Positional argument for the save path
