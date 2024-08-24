@@ -1,6 +1,7 @@
 # scripts/run_gseapy.py
 
 import sys
+import numpy as np
 import pandas as pd
 import gseapy
 
@@ -20,6 +21,12 @@ def convert_gseapy_table(tab: pd.DataFrame, ont_id: str) -> None:
 
 def run_gseapy_multi(tab, metric, outdir=None, overwrite=False, **kwargs):
 
+    if metric not in tab.columns:
+        if metric == "neg_signed_logpval":
+            tab["neg_signed_logpval"] = -np.sign(tab["logFC"]) * np.log10(tab["PValue"])
+        else:
+            raise Exception(f"Metric not in input table: {metric}")
+        
     input = tab[metric].sort_values(ascending=False)
     input.index.name = None # remove header
 

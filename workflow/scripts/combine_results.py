@@ -88,9 +88,11 @@ def load_config(file_path: str) -> Dict[str, Any]:
 def format_table(tab: pd.DataFrame, tool: str, metric: str, library: str) -> pd.DataFrame:
     tab.rename({"NOM p-val": "pvalue", "ES": "enrichmentScore", 
                 "Term": "Description", "FDR q-val": "qvalue"}, axis=1, inplace=True)
-    tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
-    tab["Signed_Term"] = tab.index + "." + tab["Direction"]
-
+    
+    # currently unused
+    #tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
+    #tab["Signed_Term"] = tab.index + "." + tab["Direction"]
+    
     if library == "GO":
         if tab.index.name != "ID":
             tab.index = tab["ID"]
