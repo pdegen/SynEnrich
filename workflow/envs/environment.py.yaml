@@ -19,9 +19,3 @@ dependencies:
   - upsetplot
   - snakemake
   - gseapy
-  - rpy2
-  - r-base=4.3.3
-  - r-essentials
-  - bioconductor-clusterprofiler=4.10.0
-  - bioconductor-org.hs.eg.db=3.18.0
-  - bioconductor-annotationdbi=1.64.1

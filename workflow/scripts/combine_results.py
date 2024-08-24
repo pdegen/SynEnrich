@@ -55,7 +55,7 @@ def combine_results(dfs) -> pd.DataFrame:
 
     def combine_descriptions(row):
         descriptions = row.dropna().unique()
-        return ', '.join(descriptions) if descriptions.size > 0 else np.nan
+        return descriptions[0] if descriptions.size > 0 else np.nan
 
     summary_df['Description'] = summary_df.loc[:, pd.IndexSlice[:, 'Description']].apply(combine_descriptions, axis=1)
     summary_df.drop("Description", level=1, axis=1, inplace=True)
@@ -78,6 +78,24 @@ def load_config(file_path: str) -> Dict[str, Any]:
     with open(file_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
+
+def format_table(tab: pd.DataFrame, tool: str, metric: str, library: str) -> pd.DataFrame:
+    tab.rename({"NOM p-val": "pvalue", "ES": "enrichmentScore", 
+                "Term": "Description", "FDR q-val": "qvalue"}, axis=1, inplace=True)
+    tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
+    tab["Signed_Term"] = tab.index + "." + tab["Direction"]
+
+    if library == "GO":
+        if tab.index.name != "ID":
+            tab.index = tab["ID"]
+    elif library == "KEGG":
+        tab.index = tab["Description"] # gseapy doesn't store KEGG IDs...
+    else:
+        raise Exception("Library not supported:", library)
+    
+    tab.index.name = tool + "." + metric # hacky
+
+    return tab
 
 def main(savepath: str, output_files: List[str], project_name: str) -> None:
 
@@ -116,23 +134,11 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
 
                 sep = "\t" if os.path.splitext(file)[-1] == ".tsv" else ","
                 tab = pd.read_csv(file, index_col=0, sep = sep)
-
-                tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
-                tab["Signed_Term"] = tab.index + "." + tab["Direction"]
-
-                if library == "GO":
-                    if tab.index.name != "ID":
-                        tab.index = tab["ID"]
-                elif library == "KEGG":
-                    tab.index = tab["Description"] # gseapy doesn't store KEGG IDs...
-                else:
-                    raise Exception("Library not supported:", library)
-                    
-                tab.index.name = tool + "." + metric # hacky
+                tab = format_table(tab, tool, metric, library)                    
                 tab_dict[tab.index.name] = tab
         
         ### Combine results
-        dfs = [d[["enrichmentScore","pvalue","Description"]] for d in tab_dict.values()]
+        dfs = [d[["enrichmentScore","pvalue","qvalue","Description"]] for d in tab_dict.values()]
         summary_df = combine_results(dfs)
         summary_df.to_csv(output_files_lib, index=True)
 

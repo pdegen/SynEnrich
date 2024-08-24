@@ -6,7 +6,8 @@ import gseapy
 
 def convert_gseapy_table(tab: pd.DataFrame, ont_id: str) -> None:
     '''Convert GSEApy columns to match clusterProfiler'''
-    tab.rename({"NOM p-val": "pvalue", "ES": "enrichmentScore", "Term": "Description"}, axis=1, inplace=True) # dubious combining scores?
+    tab.rename({"NOM p-val": "pvalue", "ES": "enrichmentScore", 
+                "Term": "Description", "FDR q-val": "qvalue"}, axis=1, inplace=True) # dubious combining scores?
 
     if ont_id == "GO":
         tab["ID"] = "GO:" + tab["Description"].str.split("\\(GO:").str[1].str[:-1]
