@@ -25,6 +25,12 @@ def stouffer_combined_p_value(p_values: Union[List[float], np.ndarray],
     combined_p_value = norm.cdf(-weighted_z)
     return combined_p_value
 
+def mean_pval(pvals):
+    pv = pvals.copy() # pvals is read-only
+    pv[pv == 0] = 1e-30  # Impute zeros with a small number
+    return 10**np.mean(np.log10(pv))
+
+
 ## TO DO: refactor
 def combine_results(dfs) -> pd.DataFrame:
 
@@ -36,8 +42,8 @@ def combine_results(dfs) -> pd.DataFrame:
     summary_df = pd.DataFrame(index=combined_df_common.index)
     summary_df["enrichmentScore Mean"] = combined_df_common.xs("enrichmentScore", axis=1, level=1).mean(axis=1)
     summary_df["enrichmentScore SD"] = combined_df_common.xs("enrichmentScore", axis=1, level=1).std(axis=1)
-    summary_df["Stouffer pvalue"] = combined_df_common.xs("pvalue", axis=1, level=1).apply(stouffer_combined_p_value, axis=1)
-    summary_df["Stouffer FDR"] = fdrcorrection(summary_df["Stouffer pvalue"], )[1]
+    summary_df["Combined pvalue"] = combined_df_common.xs("pvalue", axis=1, level=1).apply(mean_pval, axis=1)
+    summary_df["Combined FDR"] = fdrcorrection(summary_df["Combined pvalue"], )[1]
     summary_df.columns = pd.MultiIndex.from_product([["Combined"], summary_df.columns])
     summary_df = pd.concat([combined_df_common,summary_df], axis=1)
 
@@ -46,8 +52,8 @@ def combine_results(dfs) -> pd.DataFrame:
     summary_df_uncommon = pd.DataFrame(index=combined_df_uncommon.index)
     summary_df_uncommon["enrichmentScore Mean"] = combined_df_uncommon.xs("enrichmentScore", axis=1, level=1).mean(axis=1)
     summary_df_uncommon["enrichmentScore SD"] = combined_df_uncommon.xs("enrichmentScore", axis=1, level=1).std(axis=1)
-    summary_df_uncommon["Stouffer pvalue"] = np.nan
-    summary_df_uncommon["Stouffer pvalue"] = np.nan
+    summary_df_uncommon["Combined pvalue"] = np.nan
+    summary_df_uncommon["Combined pvalue"] = np.nan
     summary_df_uncommon.columns = pd.MultiIndex.from_product([["Combined"], summary_df_uncommon.columns])
     summary_df_uncommon = pd.concat([combined_df_uncommon,summary_df_uncommon], axis=1)
     
