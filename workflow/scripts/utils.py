@@ -1,4 +1,10 @@
+import pickle
 import pandas as pd
+
+def pickler(contents, filepath):
+    """Store arbitrary Python object in filepath"""
+    with open(filepath, "wb") as fp:
+        pickle.dump(contents, fp)
 
 def format_string_table(df: pd.DataFrame, library: str) -> pd.DataFrame:
     """
