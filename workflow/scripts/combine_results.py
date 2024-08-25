@@ -144,9 +144,16 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
                 tab = pd.read_csv(file, index_col=0, sep = sep)
                 tab = format_table(tab, tool, metric, library)                    
                 tab_dict[tab.index.name] = tab
+
+                # string contains terms enriched in "both" directions; also top referst to negative value rankings and vice versa
+                if tool.lower() == "string":
+                    tab["Direction"] = tab["direction"].apply(lambda x: "Up" if x == "bottom" else "Down" if x == "top" else "Both")
+                else:
+                    tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
+
         
         ### Combine results
-        dfs = [d[["enrichmentScore","pvalue","qvalue","Description"]] for d in tab_dict.values()]
+        dfs = [d[["enrichmentScore","pvalue","qvalue","Description","Direction"]] for d in tab_dict.values()]
         summary_df = combine_results(dfs)
         summary_df.to_csv(output_files_lib, index=True)
 

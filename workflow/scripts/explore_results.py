@@ -13,11 +13,15 @@ def get_sig_dict(summary_df: pd.DataFrame,
 
     for tool in tools:
         for metric in metrics:
+
             terms = summary_df[(tool,metric,"qvalue")].dropna()
+            direction = summary_df[(tool,metric,"Direction")].dropna()
+
+
             sig = terms[terms<qval]
             if (verbose):
                 print(tool, metric, "Terms tested:", len(terms), "Significant:",  len(sig))
-            sig_dict[tool][metric] = set((sig.index + " | " + summary_df.loc[sig.index,("nan","nan","Description")]))
+            sig_dict[tool][metric] = set((sig.index + "_" + direction.loc[sig.index] + " | " + summary_df.loc[sig.index,("nan","nan","Description")]))
 
     return sig_dict
 
