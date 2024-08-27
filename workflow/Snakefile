@@ -13,7 +13,7 @@ savepath = f"results/{project_name}"
 # Gene conversion
 gene_converter = f"results/{project_name}/gene_converter.csv"
 
-# ClusterProfiler
+# ClusterProfiler params
 keytype = config["keytype"]
 organismKEGG = config["organismKEGG"]
 

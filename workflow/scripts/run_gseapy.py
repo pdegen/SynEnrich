@@ -19,7 +19,7 @@ def convert_gseapy_table(tab: pd.DataFrame, ont_id: str) -> None:
     
     tab.set_index("ID", inplace=True, drop=False)
 
-def run_gseapy_multi(tab, metric, outdir=None, overwrite=False, **kwargs):
+def run_gseapy_multi(tab: pd.DataFrame, metric: str, outdir: str = None, overwrite: bool = False, **kwargs) -> None:
 
     if metric not in tab.columns:
         if metric == "neg_signed_logpval":
@@ -51,7 +51,7 @@ def run_gseapy_multi(tab, metric, outdir=None, overwrite=False, **kwargs):
         res_merged.to_csv(outfile_go if ont_id == "GO" else outfile_kegg)
 
 
-def run_gseapy(input, ontology, outdir=None, **kwargs):
+def run_gseapy(input: pd.DataFrame, ontology: str, outdir: str = None, **kwargs):
     res = gseapy.prerank(rnk=input, 
                           gene_sets=ontology, 
                           outdir=None, 
@@ -61,7 +61,7 @@ def run_gseapy(input, ontology, outdir=None, **kwargs):
     res.res2d["Ontology"] = ontology
     return res
 
-def main():
+def main() -> None:
     tab = pd.read_csv(input_file, index_col=0)
 
     if tab.index.name != "SYMBOL":
@@ -70,9 +70,9 @@ def main():
         tab = tab.merge(gene_table, how='left', on=keytype)
         tab.dropna(axis=0, inplace=True)
         tab.set_index("SYMBOL", inplace=True)
-    else:
-        # https://gseapy.readthedocs.io/en/latest/faq.html#q-why-gene-symbols-in-enrichr-library-are-all-upper-cases-for-mouse-fly-fish-worm
-        tab.index = tab.index.str.upper() # Enrichr supports only upper case
+
+    # https://gseapy.readthedocs.io/en/latest/faq.html#q-why-gene-symbols-in-enrichr-library-are-all-upper-cases-for-mouse-fly-fish-worm
+    tab.index = tab.index.str.upper() # Enrichr supports only upper case
 
     run_gseapy_multi(tab, metric)
 
