@@ -8,6 +8,8 @@ project_name = config["project_name"]
 metrics = config["metrics"]
 libraries = config["libraries"]
 tools = config["tools"]
+save_summary_dict = config["save_summary_dict"]
+qval = config["qval"]
 savepath = f"results/{project_name}"
 
 # Gene conversion
@@ -19,15 +21,17 @@ organismKEGG = config["organismKEGG"]
 
 # Define result paths based on project name
 gsea_output = f"results/{project_name}/syn.{{tool}}.{{metric}}.{{library}}.{project_name}.csv"
-combined_output = f"results/{project_name}/syn.combined.{{library}}.{project_name}.csv"
+combined_configurations_output = f"results/{project_name}/combined/syn.combined.{{library}}.{project_name}.csv"
+summary_dict_output = f"results/{project_name}/combined/syn.summary_dict.{project_name}.txt"
 
-all_intermediate_outputs = expand(gsea_output, metric=metrics, library=libraries, tool=[t for t in tools if t != "string"])
-final_outputs = expand(combined_output, library=libraries)
+all_intermediate_outputs = expand(gsea_output, metric=metrics, library=libraries, tool=tools)#[t for t in tools if t != "string"])
+final_configurations_outputs = expand(combined_configurations_output, library=libraries)
 
 # Define the final target files based on the method selected
 rule all:
     input:
-        final_outputs,
+        summary_dict_output,
+        final_configurations_outputs,
         all_intermediate_outputs
 
 
@@ -75,16 +79,29 @@ rule run_gseapy:
         """
 
 
-# Rule to combine results
-rule combine_results:
+# Rule to combine results from different configurations (metrics, tools)
+rule combine_results_from_different_configurations:
     input:
         all_intermediate_outputs,
         gene_converter
     output:
-        final_outputs
+        final_configurations_outputs
     conda:
         "envs/environment.yaml"
     shell:
         """
-        python workflow/scripts/combine_results.py {savepath} {final_outputs}
+        python workflow/scripts/combine_results.py {savepath} {final_configurations_outputs}
+        """
+
+# Rule to combine results from different libraries
+rule combine_results_from_different_libraries:
+    input:
+        final_configurations_outputs,
+    output:
+        summary_dict_output
+    conda:
+        "envs/environment.yaml"
+    shell:
+        """
+        python workflow/scripts/combine_libs.py 
         """
