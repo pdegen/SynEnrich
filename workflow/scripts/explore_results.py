@@ -68,6 +68,10 @@ def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
     combos = count_combinations(nested_dict)
     depth_df["RelativeDepth"] = depth_df["Depth"] / combos
 
+    if len(depth_df) < 1:
+        print("No significant terms found!")
+        return pd.DataFrame(columns=["Description","Depth","RelativeDepth","Factors"])
+    
     if " | " in depth_df.index[0]:
         depth_df["Description"] = depth_df.index.str.split("|").str[1]
         depth_df.index = depth_df.index.str.split("|").str[0]

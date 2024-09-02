@@ -21,21 +21,18 @@ def create_summary_dict(savepath: str,
         summary_df = pd.read_csv(f"{savepath}/syn.combined.{lib}.{project_name}.csv", index_col=0, header=[0,1,2])
         summary_df.sort_values(by=("Combined","nan","Combined FDR"))
         summary_dict[lib]["summary_df"] = summary_df
-        print(tools,metrics,qval)
-        print(summary_df.head())
         sig_dict = get_sig_dict(summary_df, tools, metrics, qval=qval, verbose=True)
         summary_dict[lib]["depth_df"] = create_intersection_depth_df(sig_dict)    
 
     # Store results in dictionary for meta-analysis
     if save:
         print(f"Saving summary dict with qval threshold = {qval}")
-        pickler(summary_dict, f"{savepath}/syn.summary_dict.{project_name}.txt")
+        outfile = os.path.join(savepath, f"syn.summary_dict.{project_name}.txt")
+        pickler(summary_dict, outfile)
 
     return summary_dict
 
 if __name__ == "__main__":
-
-    pd.options.mode.copy_on_write = True
 
     config_file_path = os.path.join("config", "config.yaml")
     with open(config_file_path, 'r') as stream:

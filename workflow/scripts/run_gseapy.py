@@ -19,7 +19,7 @@ def convert_gseapy_table(tab: pd.DataFrame, ont_id: str) -> None:
     
     tab.set_index("ID", inplace=True, drop=False)
 
-def run_gseapy_multi(tab: pd.DataFrame, metric: str, outdir: str = None, overwrite: bool = False, **kwargs) -> None:
+def run_gseapy_multi(tab: pd.DataFrame, metric: str, outdir: str = "", overwrite: bool = False, **kwargs) -> None:
 
     if metric not in tab.columns:
         if metric == "neg_signed_logpval":
@@ -51,7 +51,7 @@ def run_gseapy_multi(tab: pd.DataFrame, metric: str, outdir: str = None, overwri
         res_merged.to_csv(outfile_go if ont_id == "GO" else outfile_kegg)
 
 
-def run_gseapy(input: pd.DataFrame, ontology: str, outdir: str = None, **kwargs):
+def run_gseapy(input: pd.DataFrame, ontology: str, outdir: str, **kwargs):
     res = gseapy.prerank(rnk=input, 
                           gene_sets=ontology, 
                           outdir=None, 

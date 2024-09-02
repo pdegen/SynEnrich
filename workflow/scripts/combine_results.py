@@ -108,8 +108,9 @@ def format_table(tab: pd.DataFrame, tool: str, metric: str, library: str) -> pd.
 def main(savepath: str, output_files: List[str], project_name: str) -> None:
 
     # Get latest config file
-    config_file = f"{savepath}/config.yaml"
-    os.system(f"cp config/config.yaml {config_file}")
+    config_file = os.path.join(savepath, "config.yaml")
+    orig_config_file = os.path.join("config", "config.yaml")
+    os.system(f"cp {orig_config_file} {config_file}")
     config = load_config(config_file)
 
 
