@@ -165,8 +165,11 @@ cython_debug/
 .snakemake/
 
 # Ignore resources, results, config
-resources
 results
 config
+
+!resources/
+resources/*
+!resources/testdata/
 
 workflow/notebooks/pdegen*

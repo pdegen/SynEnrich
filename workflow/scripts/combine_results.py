@@ -28,7 +28,7 @@ def stouffer_combined_p_value(p_values: Union[List[float], np.ndarray],
 def mean_pval(pvals):
     pv = pvals.copy() # pvals is read-only
     pv[pv == 0] = 1e-30  # Impute zeros with a small number
-    return 10**np.mean(np.log10(pv))
+    return 10**np.nanmean(np.log10(pv))
 
 
 ## TO DO: refactor
@@ -38,26 +38,26 @@ def combine_results(dfs) -> pd.DataFrame:
     combined_df.columns = pd.MultiIndex.from_product([combined_df.columns.levels[0], combined_df.columns.levels[1]])
 
     # Calculate combined pvals only for common terms
-    combined_df_common = combined_df.dropna(axis=0)
+    combined_df_common = combined_df#.dropna(axis=0)
     summary_df = pd.DataFrame(index=combined_df_common.index)
-    summary_df["enrichmentScore Mean"] = combined_df_common.xs("enrichmentScore", axis=1, level=1).mean(axis=1)
-    summary_df["enrichmentScore SD"] = combined_df_common.xs("enrichmentScore", axis=1, level=1).std(axis=1)
+    summary_df["enrichmentScore Mean"] = combined_df_common.xs("enrichmentScore", axis=1, level=1).apply(np.nanmean, axis=1)
+    summary_df["enrichmentScore SD"] = combined_df_common.xs("enrichmentScore", axis=1, level=1).apply(np.nanstd, axis=1)
     summary_df["Combined pvalue"] = combined_df_common.xs("pvalue", axis=1, level=1).apply(mean_pval, axis=1)
     summary_df["Combined FDR"] = fdrcorrection(summary_df["Combined pvalue"], )[1]
     summary_df.columns = pd.MultiIndex.from_product([["Combined"], summary_df.columns])
     summary_df = pd.concat([combined_df_common,summary_df], axis=1)
 
     # Add remaining terms that are not common to all tools
-    combined_df_uncommon = combined_df.loc[combined_df.index.difference(combined_df_common.index)]
-    summary_df_uncommon = pd.DataFrame(index=combined_df_uncommon.index)
-    summary_df_uncommon["enrichmentScore Mean"] = combined_df_uncommon.xs("enrichmentScore", axis=1, level=1).mean(axis=1)
-    summary_df_uncommon["enrichmentScore SD"] = combined_df_uncommon.xs("enrichmentScore", axis=1, level=1).std(axis=1)
-    summary_df_uncommon["Combined pvalue"] = np.nan
-    summary_df_uncommon["Combined pvalue"] = np.nan
-    summary_df_uncommon.columns = pd.MultiIndex.from_product([["Combined"], summary_df_uncommon.columns])
-    summary_df_uncommon = pd.concat([combined_df_uncommon,summary_df_uncommon], axis=1)
+    # combined_df_uncommon = combined_df.loc[combined_df.index.difference(combined_df_common.index)]
+    # summary_df_uncommon = pd.DataFrame(index=combined_df_uncommon.index)
+    # summary_df_uncommon["enrichmentScore Mean"] = combined_df_uncommon.xs("enrichmentScore", axis=1, level=1).mean(axis=1)
+    # summary_df_uncommon["enrichmentScore SD"] = combined_df_uncommon.xs("enrichmentScore", axis=1, level=1).std(axis=1)
+    # summary_df_uncommon["Combined pvalue"] = np.nan
+    # summary_df_uncommon["Combined pvalue"] = np.nan
+    # summary_df_uncommon.columns = pd.MultiIndex.from_product([["Combined"], summary_df_uncommon.columns])
+    # summary_df_uncommon = pd.concat([combined_df_uncommon,summary_df_uncommon], axis=1)
     
-    summary_df = pd.concat([summary_df, summary_df_uncommon], axis=0)
+    #summary_df = pd.concat([summary_df, summary_df_uncommon], axis=0)
 
     def combine_descriptions(row):
         descriptions = row.dropna().unique()
