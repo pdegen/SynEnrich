@@ -62,7 +62,7 @@ def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
 
     depth_df = pd.DataFrame(intersection_depth.values(), index=intersection_depth.keys(), columns=["Depth"])
     depth_df.sort_values(by="Depth", ascending=False, inplace=True)
-    factors_df = pd.DataFrame(factors_for_element.values(), index=factors_for_element.keys(), columns=["Factors"])
+    factors_df = pd.DataFrame(factors_for_element.values(), index=factors_for_element.keys(), columns=["Configurations"])
     depth_df = pd.concat([depth_df,factors_df], axis=1)
 
     combos = count_combinations(nested_dict)
@@ -70,12 +70,12 @@ def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
 
     if len(depth_df) < 1:
         print("No significant terms found!")
-        return pd.DataFrame(columns=["Description","Depth","RelativeDepth","Factors"])
+        return pd.DataFrame(columns=["Description","Depth","RelativeDepth","Configurations"])
     
     if " | " in depth_df.index[0]:
         depth_df["Description"] = depth_df.index.str.split("|").str[1]
         depth_df.index = depth_df.index.str.split("|").str[0]
-        return depth_df[["Description","Depth","RelativeDepth","Factors"]]
+        return depth_df[["Description","Depth","RelativeDepth","Configurations"]]
     
-    return depth_df[["Depth","RelativeDepth","Factors"]]
+    return depth_df[["Depth","RelativeDepth","Configurations"]]
     
