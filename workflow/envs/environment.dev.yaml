@@ -1,12 +1,14 @@
-# environment.yaml
+# environment.dev.yaml
 
-name: SynEnrich
+name: SynDev
 channels:
   - conda-forge
   - bioconda
   - nodefaults
 dependencies:
   - python=3.12.3
+  - mamba
+  - pip
   - pyyaml=6.0.2
   - pandas=2.2.2
   - matplotlib=3.9.2
