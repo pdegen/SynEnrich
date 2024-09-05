@@ -1,7 +1,8 @@
+import warnings
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib_venn import venn2, venn3
-import warnings
 
 def npg_palette():
     palette = ["#E64B35FF", "#4DBBD5FF", "#00A087FF", "#3C5488FF", "#F39B7FFF",

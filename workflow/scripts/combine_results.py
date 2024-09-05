@@ -1,17 +1,16 @@
 # scripts/combine_results.py
 
 import os
-import sys
 import argparse
 import yaml
+import glob
+from typing import Optional, List, Union, Dict, Any
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 from statsmodels.stats.multitest import fdrcorrection
-from matplotlib_venn import venn2, venn3
-import glob
-from typing import Optional, List, Union, Dict, Any
+
 
 def stouffer_combined_p_value(p_values: Union[List[float], np.ndarray], 
                               weights: Optional[Union[List[float], np.ndarray]] = None) -> float:
@@ -28,6 +27,7 @@ def stouffer_combined_p_value(p_values: Union[List[float], np.ndarray],
 def mean_pval(pvals):
     pv = pvals.copy() # pvals is read-only
     pv[pv == 0] = 1e-30  # Impute zeros with a small number
+    pv = pv.astype(float) # else np.log10 might complain
     return 10**np.nanmean(np.log10(pv))
 
 
@@ -95,9 +95,9 @@ def format_table(tab: pd.DataFrame, tool: str, metric: str, library: str) -> pd.
     
     if library == "GO":
         if tab.index.name != "ID":
-            tab.index = tab["ID"]
+            tab.set_index("ID", drop=False)
     elif library == "KEGG":
-        tab.index = tab["Description"] # gseapy doesn't store KEGG IDs...
+        tab.set_index("Description", drop=False) # gseapy doesn't store KEGG IDs...
     else:
         raise Exception("Library not supported:", library)
     
