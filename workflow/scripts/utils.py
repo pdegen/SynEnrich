@@ -12,7 +12,7 @@ def format_string_table(df: pd.DataFrame, library: str) -> pd.DataFrame:
     Output will look closer to ClusterProfiler table
     """
 
-    df.loc[:,"ONTOLOGY"] = df.index
+    df["ONTOLOGY"] = df.index.to_series()
 
     match library:
         case "GO":

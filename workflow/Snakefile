@@ -1,7 +1,9 @@
 # Snakefile
 
+
 # Config file
 configfile: "config/config.yaml"
+
 
 input_file = config["input_file"]
 project_name = config["project_name"]
@@ -20,27 +22,36 @@ keytype = config["keytype"]
 organismKEGG = config["organismKEGG"]
 
 # Define result paths based on project name
-gsea_output = f"results/{project_name}/syn.{{tool}}.{{metric}}.{{library}}.{project_name}.csv"
-combined_configurations_output = f"results/{project_name}/combined/syn.combined.{{library}}.{project_name}.csv"
-summary_dict_output = f"results/{project_name}/combined/syn.summary_dict.{project_name}.txt"
+gsea_output = (
+    f"results/{project_name}/syn.{{tool}}.{{metric}}.{{library}}.{project_name}.csv"
+)
+combined_configurations_output = (
+    f"results/{project_name}/combined/syn.combined.{{library}}.{project_name}.csv"
+)
+summary_dict_output = (
+    f"results/{project_name}/combined/syn.summary_dict.{project_name}.txt"
+)
 
-all_intermediate_outputs = expand(gsea_output, metric=metrics, library=libraries, tool=tools)#[t for t in tools if t != "string"])
+all_intermediate_outputs = expand(
+    gsea_output, metric=metrics, library=libraries, tool=tools
+)  # [t for t in tools if t != "string"])
 final_configurations_outputs = expand(combined_configurations_output, library=libraries)
+
 
 # Define the final target files based on the method selected
 rule all:
     input:
         summary_dict_output,
         final_configurations_outputs,
-        all_intermediate_outputs
+        all_intermediate_outputs,
 
 
 # Rule for creating gene name converter table
 rule run_geneconverter:
     input:
-        input_file
+        input_file,
     output:
-        gene_converter
+        gene_converter,
     conda:
         "envs/environment.clusterprofiler.yaml"
     shell:
@@ -48,14 +59,23 @@ rule run_geneconverter:
         Rscript workflow/scripts/run_geneconverter.R {input} {keytype} {organismKEGG} {gene_converter}
         """
 
+
 # Rule for running ClusterProfiler
 rule run_clusterprofiler:
     input:
-        infile = input_file,
-        g = gene_converter
+        infile=input_file,
+        g=gene_converter,
     output:
-        go = f"results/{project_name}/syn.clusterProfiler.{{metric}}.GO.{project_name}.csv" if "clusterProfiler" in tools and "GO" in libraries else "",
-        kegg = f"results/{project_name}/syn.clusterProfiler.{{metric}}.KEGG.{project_name}.csv" if "clusterProfiler" in tools and "KEGG" in libraries else ""
+        go=(
+            f"results/{project_name}/syn.clusterProfiler.{{metric}}.GO.{project_name}.csv"
+            if "clusterProfiler" in tools and "GO" in libraries
+            else ""
+        ),
+        kegg=(
+            f"results/{project_name}/syn.clusterProfiler.{{metric}}.KEGG.{project_name}.csv"
+            if "clusterProfiler" in tools and "KEGG" in libraries
+            else ""
+        ),
     conda:
         "envs/environment.clusterprofiler.yaml"
     shell:
@@ -63,14 +83,23 @@ rule run_clusterprofiler:
         Rscript workflow/scripts/run_clusterprofiler.R {input.infile} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {output.go} {output.kegg}
         """
 
+
 # Rule for running gseapy
 rule run_gseapy:
     input:
-        infile = input_file,
-        g = gene_converter
+        infile=input_file,
+        g=gene_converter,
     output:
-        go = f"results/{project_name}/syn.gseapy.{{metric}}.GO.{project_name}.csv" if "gseapy" in tools and "GO" in libraries else "",
-        kegg = f"results/{project_name}/syn.gseapy.{{metric}}.KEGG.{project_name}.csv" if "gseapy" in tools and "KEGG" in libraries else ""
+        go=(
+            f"results/{project_name}/syn.gseapy.{{metric}}.GO.{project_name}.csv"
+            if "gseapy" in tools and "GO" in libraries
+            else ""
+        ),
+        kegg=(
+            f"results/{project_name}/syn.gseapy.{{metric}}.KEGG.{project_name}.csv"
+            if "gseapy" in tools and "KEGG" in libraries
+            else ""
+        ),
     conda:
         "envs/environment.yaml"
     shell:
@@ -83,9 +112,9 @@ rule run_gseapy:
 rule combine_results_from_different_configurations:
     input:
         all_intermediate_outputs,
-        gene_converter
+        gene_converter,
     output:
-        final_configurations_outputs
+        final_configurations_outputs,
     conda:
         "envs/environment.yaml"
     shell:
@@ -93,12 +122,13 @@ rule combine_results_from_different_configurations:
         python workflow/scripts/combine_results.py {savepath} {final_configurations_outputs}
         """
 
+
 # Rule to combine results from different libraries
 rule combine_results_from_different_libraries:
     input:
         final_configurations_outputs,
     output:
-        summary_dict_output
+        summary_dict_output,
     conda:
         "envs/environment.yaml"
     shell:
