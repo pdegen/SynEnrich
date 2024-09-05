@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import pandas as pd
 import gseapy
+from typing import Union
 
 def convert_gseapy_table(tab: pd.DataFrame, ont_id: str) -> None:
     '''Convert GSEApy columns to match clusterProfiler'''
@@ -51,7 +52,7 @@ def run_gseapy_multi(tab: pd.DataFrame, metric: str, outdir: str = "", overwrite
         res_merged.to_csv(outfile_go if ont_id == "GO" else outfile_kegg)
 
 
-def run_gseapy(input: pd.DataFrame, ontology: str, outdir: str, **kwargs):
+def run_gseapy(input: Union[pd.DataFrame, pd.Series], ontology: str, outdir: str, **kwargs):
     res = gseapy.prerank(rnk=input, 
                           gene_sets=ontology, 
                           outdir=None, 

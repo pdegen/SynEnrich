@@ -1,6 +1,6 @@
 # environment.yaml
 
-name: SynEnrich_ClusteProfiler
+name: SynEnrich_ClusterProfiler
 channels:
   - conda-forge
   - bioconda
