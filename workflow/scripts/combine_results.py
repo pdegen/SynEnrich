@@ -114,7 +114,9 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
     config = load_config(config_file)
 
 
-    metrics = config.get('metrics', [])
+    metrics_prerank = config.get('metrics_prerank', [])
+    metrics_expr = config.get('metrics_expr', [])
+    metrics = metrics_expr + metrics_prerank
     libraries = config.get('libraries', [])
     tools = config.get('tools', [])
 

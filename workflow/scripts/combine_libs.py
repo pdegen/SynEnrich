@@ -40,11 +40,14 @@ if __name__ == "__main__":
 
     libs = config.get('libraries', [])
     tools = config.get('tools', [])
-    metrics = config.get('metrics', [])
+    metrics_prerank = config.get('metrics_prerank', [])
+    metrics_expr = config.get('metrics_expr', [])
     project_name = config.get('project_name')
     qval = config.get('qval')
     save = config.get('save_summary_dict')
     savepath = os.path.join("results",project_name,"combined")
+
+    metrics = metrics_prerank + metrics_expr
 
     create_summary_dict(savepath, libs, tools, metrics, project_name, qval, save)
 

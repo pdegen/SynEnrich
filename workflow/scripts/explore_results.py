@@ -13,15 +13,18 @@ def get_sig_dict(summary_df: pd.DataFrame,
 
     for tool in tools:
         for metric in metrics:
-
-            terms = summary_df[(tool,metric,"qvalue")].dropna()
+            try:
+                terms = summary_df[(tool,metric,"qvalue")].dropna()
+            except KeyError:
+                print(f"key not found: {(tool,metric,'qvalue')}")
+                continue
             direction = summary_df[(tool,metric,"Direction")].dropna()
 
 
             sig = terms[terms<qval]
             if (verbose):
                 print(tool, metric, "Terms tested:", len(terms), "Significant:",  len(sig))
-            sig_dict[tool][metric] = set((sig.index + "_" + direction.loc[sig.index] + " | " + summary_df.loc[sig.index,("nan","nan","Description")]))
+            sig_dict[tool][metric] = set((sig.index + "_" + direction.loc[sig.index] + " | " + summary_df.loc[sig.index,("nan","nan","Description")]))  
 
     return sig_dict
 
@@ -36,8 +39,7 @@ def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
     :param nested_dict: Nested dict of factors where the deepest level contains sets
     :returns: pd.DataFrame with index = union of set elements.
 
-    Depth: The intersection depth (number of sets a given element appears in)
-    RelativeDepth: Depth divided by total number of factor combinations
+    Depth: The intersection depth (number of sets a given element appears in) Depth divided by total number of factor combinations
     Factors: String listing all the factors a given element appears in
     """
 
@@ -65,17 +67,18 @@ def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
     factors_df = pd.DataFrame(factors_for_element.values(), index=factors_for_element.keys(), columns=["Configurations"])
     depth_df = pd.concat([depth_df,factors_df], axis=1)
 
-    combos = count_combinations(nested_dict)
-    depth_df["RelativeDepth"] = depth_df["Depth"] / combos
+    # this assumes all combos exist, not the case
+    # combos = count_combinations(nested_dict)
+    #depth_df["RelativeDepth"]] = depth_df["Depth"] / combos
 
     if len(depth_df) < 1:
         print("No significant terms found!")
-        return pd.DataFrame(columns=["Description","Depth","RelativeDepth","Configurations"])
+        return pd.DataFrame(columns=["Description","Depth","Configurations"])
     
     if " | " in depth_df.index[0]:
         depth_df["Description"] = depth_df.index.str.split("|").str[1]
         depth_df.index = depth_df.index.str.split("|").str[0]
-        return depth_df[["Description","Depth","RelativeDepth","Configurations"]]
+        return depth_df[["Description","Depth","Configurations"]]
     
-    return depth_df[["Depth","RelativeDepth","Configurations"]]
+    return depth_df[["Depth","Configurations"]]
     
