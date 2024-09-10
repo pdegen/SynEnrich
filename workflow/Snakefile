@@ -21,6 +21,9 @@ gene_converter = f"results/{project_name}/gene_converter.csv"
 keytype = config["keytype"]
 organismKEGG = config["organismKEGG"]
 
+# GSEApy params
+gseapy_use_enrichr = config["gseapy_use_enrichr"] # if false, use gmt files for GO
+
 # Define result paths based on project name
 gsea_output = (
     f"results/{project_name}/syn.{{tool}}.{{metric}}.{{library}}.{project_name}.csv"
@@ -104,7 +107,7 @@ rule run_gseapy:
         "envs/environment.yaml"
     shell:
         """
-        python workflow/scripts/run_gseapy.py {input.infile} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {output.go} {output.kegg}
+        python workflow/scripts/run_gseapy.py {input.infile} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {output.go} {output.kegg} {gseapy_use_enrichr}
         """
 
 
