@@ -9,10 +9,15 @@ from typing import Union
 def convert_gseapy_table(tab: pd.DataFrame, ont_id: str) -> None:
     '''Convert GSEApy columns to match clusterProfiler'''
     tab.rename({"NOM p-val": "pvalue", "ES": "enrichmentScore", 
-                "Term": "Description", "FDR q-val": "qvalue"}, axis=1, inplace=True) # dubious combining scores?
+                "FDR q-val": "qvalue"}, axis=1, inplace=True) # dubious combining scores?
 
-    if ont_id == "GO":
+    if gseapy_use_enrichr or ont_id == "KEGG":
+        tab.rename({"Term": "Description"}, axis=1, inplace=True)
+
+    if ont_id == "GO" and gseapy_use_enrichr:
         tab["ID"] = "GO:" + tab["Description"].str.split("\\(GO:").str[1].str[:-1]
+    elif ont_id == "GO" and not gseapy_use_enrichr:
+        tab.rename({"Term":"ID"}, axis=1, inplace=True)
     elif ont_id == "KEGG":
         tab["ID"] = tab["Description"] # gseapy doesn't save KEGG id, hence use
     else:
@@ -37,22 +42,36 @@ def run_gseapy_multi(tab: pd.DataFrame, metric: str, outdir: str = "", overwrite
     for onts in [go_onts, kegg_onts]:
         ont_id = "GO" if onts == go_onts else "KEGG"
 
-        res_list = []
         print("Running:", onts)
-        for ont in onts:
-            print("Sub-Running:", ont)
-            res = run_gseapy(input, ont, outdir, **kwargs)
-            res_list.append(res.res2d)
 
-        res_merged = pd.concat(res_list)
-        res_merged = res_merged.reset_index(drop=True)
+        if gseapy_use_enrichr or ont_id != "GO":
+            res_list = []
+            for ont in onts:
+                print("Running GSEApy with Enrichr libraries:", ont)
+                res = run_gseapy(input, ont, outdir, **kwargs)
+                res_list.append(res.res2d)
+
+            res_merged = pd.concat(res_list)
+            res_merged = res_merged.reset_index(drop=True)
+
+        else:
+            print("Running GSEApy with provided gmt files")
+            if organismKEGG == "hsa":
+                gmt_file = "resources/go_terms.org.Hs.eg.db.gmt"
+            elif organismKEGG == "mmu":
+                gmt_file = "resources/go_terms.org.Mm.eg.db.gmt"
+
+            res = run_gseapy(input, gmt_file, outdir, **kwargs)
+            res_merged = res.res2d
+            gmt_df = read_gmt(gmt_file)
+            res_merged = res_merged.merge(gmt_df[['Description']], left_index=True, right_index=True, how='left')
 
         convert_gseapy_table(res_merged, ont_id)
-        print(res_merged.head())
         res_merged.to_csv(outfile_go if ont_id == "GO" else outfile_kegg)
 
 
 def run_gseapy(input: Union[pd.DataFrame, pd.Series], ontology: str, outdir: str, **kwargs):
+
     res = gseapy.prerank(rnk=input, 
                           gene_sets=ontology, 
                           outdir=None, 
@@ -61,6 +80,17 @@ def run_gseapy(input: Union[pd.DataFrame, pd.Series], ontology: str, outdir: str
                           **kwargs)
     res.res2d["Ontology"] = ontology
     return res
+
+def read_gmt(gmt_file):
+    gene_sets = []
+    with open(gmt_file) as file:
+        for line in file:
+            parts = line.strip().split('\t')
+            if len(parts) >= 3:
+                description = parts[1]
+                genes = parts[2:]
+                gene_sets.append({'Description': description, 'genes': genes})
+    return pd.DataFrame(gene_sets)
 
 def main() -> None:
     tab = pd.read_csv(input_file, index_col=0)
@@ -86,6 +116,8 @@ if __name__ == "__main__":
     metric = sys.argv[5]
     outfile_go = sys.argv[6]
     outfile_kegg = sys.argv[7]
+    gseapy_use_enrichr = sys.argv[8]
+    gseapy_use_enrichr = gseapy_use_enrichr == "True"
 
     ontologies = ["GO_Biological_Process_2023","GO_Cellular_Component_2023","GO_Molecular_Function_2023"]
 

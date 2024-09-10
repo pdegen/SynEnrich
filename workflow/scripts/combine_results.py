@@ -97,9 +97,13 @@ def format_table(tab: pd.DataFrame, tool: str, metric: str, library: str) -> pd.
         if tab.index.name != "ID":
             tab.set_index("ID", drop=False)
     elif library == "KEGG":
-        tab.set_index("Description", drop=False) # gseapy doesn't store KEGG IDs...
+        # TO DO: fix this in clusterprofiler script
+        if tool == "clusterProfiler" and " - Mus musculus (house mouse)" in tab["Description"].iloc[0]:
+            tab["Description"] = tab["Description"].str.replace(" - Mus musculus (house mouse)", "")
+        tab.set_index("Description", drop=False, inplace=True) # gseapy doesn't store KEGG IDs...
     else:
         raise Exception("Library not supported:", library)
+    
     
     tab.index.name = tool + "." + metric # hacky
 
