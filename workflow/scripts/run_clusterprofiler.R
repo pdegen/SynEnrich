@@ -1,34 +1,3 @@
-suppressMessages(library(clusterProfiler))
-
-args <- commandArgs(trailingOnly = TRUE)
-#print(paste("Args:",args))
-
-input_file <- args[1]
-keytype <- args[2]
-organismKEGG <- args[3]
-gene_converter_file <- args[4]
-metric <- args[5]
-outfile_go <- args[6]
-outfile_kegg <- args[7]
-
-print(paste("Reading clusterProfiler input:", input_file))
-
-#metric <- strsplit(basename(outfile_go), "syn.clusterProfiler\\.")[[1]][2]
-#metric <- strsplit(metric, "\\.")[[1]][1]
-print(paste("Metric:", metric))
-
-df <- read.csv(input_file, row.names = 1)
-
-# Check if the metric is in the columns
-if (!(metric %in% colnames(df))) {
-    if (metric == "neg_signed_logpval") {
-        message(paste("Adding", metric, "to df"))
-        df$neg_signed_logpval <- -sign(df$logFC) * log10(df$PValue)
-    } else {
-        stop(paste("Metric", metric, "not in columns!"))
-    }
-}
-
 run_clusterProfiler <- function(df, outfile_go, outfile_kegg,
                                 metric,
                                 organism.KEGG,
@@ -86,7 +55,7 @@ run_clusterProfiler <- function(df, outfile_go, outfile_kegg,
   print(end_time - start_time)
 }
 
-convert_df <- function(df, OrgDb=org.Hs.eg.db) {
+convert_df <- function(df, keytype, gene_converter_file) {
 
   if ("ENTREZID" %in% names(df)) return(df)
   df[[keytype]] <- row.names(df)
@@ -98,16 +67,51 @@ convert_df <- function(df, OrgDb=org.Hs.eg.db) {
   return(df)
 }
 
-if (organismKEGG == "hsa") {
-    suppressMessages(library(org.Hs.eg.db))
-    OrgDb <- org.Hs.eg.db
-} else if (organismKEGG == "mmu") {
-    suppressMessages(library(org.Mm.eg.db))
-    OrgDb <- org.Mm.eg.db
-} else {
-    stop(paste("Organism not yet implemented:", organismKEGG))
-}
+if (!interactive()) {
 
-df <- convert_df(df, OrgDb=OrgDb)
-#print(head(df))
-run_clusterProfiler(df, outfile_go, outfile_kegg, metric, overwrite=FALSE, organism.KEGG=organismKEGG, organism.GO = OrgDb) 
+  suppressMessages(library(clusterProfiler))
+
+  args <- commandArgs(trailingOnly = TRUE)
+  #print(paste("Args:",args))
+
+  input_file <- args[1]
+  keytype <- args[2]
+  organismKEGG <- args[3]
+  gene_converter_file <- args[4]
+  metric <- args[5]
+  outfile_go <- args[6]
+  outfile_kegg <- args[7]
+
+  print(paste("Reading clusterProfiler input:", input_file))
+
+  #metric <- strsplit(basename(outfile_go), "syn.clusterProfiler\\.")[[1]][2]
+  #metric <- strsplit(metric, "\\.")[[1]][1]
+  print(paste("Metric:", metric))
+
+  df <- read.csv(input_file, row.names = 1)
+
+  # Check if the metric is in the columns
+  if (!(metric %in% colnames(df))) {
+      if (metric == "neg_signed_logpval") {
+          message(paste("Adding", metric, "to df"))
+          df$neg_signed_logpval <- -sign(df$logFC) * log10(df$PValue)
+      } else {
+          stop(paste("Metric", metric, "not in columns!"))
+      }
+  }
+
+  if (organismKEGG == "hsa") {
+      suppressMessages(library(org.Hs.eg.db))
+      OrgDb <- org.Hs.eg.db
+  } else if (organismKEGG == "mmu") {
+      suppressMessages(library(org.Mm.eg.db))
+      OrgDb <- org.Mm.eg.db
+  } else {
+      stop(paste("Organism not yet implemented:", organismKEGG))
+  }
+
+  df <- convert_df(df, keytype, gene_converter_file)
+  #print(head(df))
+  run_clusterProfiler(df, outfile_go, outfile_kegg, metric, overwrite=FALSE, organism.KEGG=organismKEGG, organism.GO = OrgDb) 
+
+}
