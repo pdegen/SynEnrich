@@ -1,15 +1,19 @@
-run_clusterProfiler <- function(df, outfile_go, outfile_kegg,
+run_clusterProfiler <- function(df, outfile,
                                 metric,
+                                library_,
                                 organism.KEGG,
                                 organism.GO, 
-                                overwrite=FALSE, seed=1234) 
+                                overwrite=FALSE, 
+                                minGSSize = 10,
+                                maxGSSize = 500,
+                                seed=1234,
+                                keytype_gmt = "SYMBOL") 
 {
   set.seed(seed)
 
-  print(outfile_go)
-  print(outfile_kegg)
+  print(paste0("ClusterProfiler target", outfile))
 
-  if (file.exists(outfile_go) && file.exists(outfile_kegg) && !overwrite) {
+  if (file.exists(outfile) && !overwrite) {
     print("Existing files not overwritte, skipping")
     return
   }
@@ -17,50 +21,78 @@ run_clusterProfiler <- function(df, outfile_go, outfile_kegg,
   start_time <- Sys.time()
 
   geneList <- df[[metric]]
-  names(geneList) <- df$ENTREZID
-  geneList = sort(geneList, decreasing = TRUE)
 
-  if ((length(outfile_go) > 0 && !file.exists(outfile_go)) || overwrite) {
+  if ((endsWith(library_, ".gmt") && !file.exists(outfile)) || overwrite) {
+    if (!file.exists(library_)) {
+      library_ = file.path("./resources/Ontologies",library_)
+      if (!file.exists(library_))
+        stop(paste0("gmt file not found:", library_))
+    }
+    print(paste0("Running with custom gmt file:", library_))
+    gmt <- read.gmt(library_)
+    gmt$gene <- toupper(gmt$gene)
+    names(geneList) <- toupper(df[[keytype_gmt]])
+    geneList = sort(geneList, decreasing = TRUE)
+    ego3 <- GSEA(geneList     = geneList,
+              TERM2GENE = gmt,
+              minGSSize    = minGSSize,
+              maxGSSize    = maxGSSize,
+              pvalueCutoff = 1,
+              eps = 0,
+              seed = TRUE,
+              verbose = FALSE)
+
+    write.csv(ego3,outfile)
+    print(paste("Wrote ClusterProfiler output to:", outfile))
+
+  } else if ((library_=="GO" && !file.exists(outfile)) || overwrite) {
+
+    names(geneList) <- df$ENTREZID
+    geneList = sort(geneList, decreasing = TRUE)
 
     print("Running GO...")
     ego3 <- gseGO(geneList     = geneList,
                   OrgDb        = organism.GO,
                   ont          = "ALL", ## CC MF BP
-                  minGSSize    = 10,
-                  maxGSSize    = 500,
+                  minGSSize    = minGSSize,
+                  maxGSSize    = maxGSSize,
                   pvalueCutoff = 1,
                   eps = 0,
                   seed = TRUE,
                   verbose = FALSE)
-    write.csv(ego3,outfile_go)
-    print(paste("Wrote GO to:", outfile_go))
-  }
+    write.csv(ego3,outfile)
+    print(paste("Wrote GO to:", outfile))
 
-  if ((length(outfile_kegg) > 0 && !file.exists(outfile_kegg)) || overwrite)  {
+  } else if ((library_=="KEGG" && !file.exists(outfile)) || overwrite)  {
+
+    names(geneList) <- df$ENTREZID
+    geneList = sort(geneList, decreasing = TRUE)
 
     print("Running KEGG...")
     kegg <- gseKEGG(geneList     = geneList,
                   organism        = organism.KEGG,
-                  minGSSize    = 10,
-                  maxGSSize    = 500,
+                  minGSSize    = minGSSize,
+                  maxGSSize    = maxGSSize,
                   pvalueCutoff = 1,
                   eps = 0,
                   seed = TRUE,
                   verbose = FALSE)
-    write.csv(kegg,outfile_kegg)
-    print(paste("Wrote KEGG to:", outfile_kegg))
+    write.csv(kegg,outfile)
+    print(paste("Wrote KEGG to:", outfile))
+  } else {
+    stop(paste0("Invalid library:", library_))
   }
 
   end_time <- Sys.time()
   print(end_time - start_time)
 }
 
-convert_df <- function(df, keytype, gene_converter_file) {
+convert_df <- function(df, keytype_in, keytype_target, gene_converter_file) {
 
-  if ("ENTREZID" %in% names(df)) return(df)
-  df[[keytype]] <- row.names(df)
+  if (keytype_target %in% names(df)) return(df)
+  df[[keytype_in]] <- row.names(df)
   ids <- read.csv(gene_converter_file)
-  df <- merge(df, ids, by = keytype, all.x = TRUE)
+  df <- merge(df, ids, by = keytype_in, all.x = TRUE)
   print(paste("Before",nrow(df)))
   df <- na.omit(df)
   print(paste("After",nrow(df)))
@@ -75,16 +107,17 @@ if (!interactive()) {
   #print(paste("Args:",args))
 
   input_file <- args[1]
-  keytype <- args[2]
-  organismKEGG <- args[3]
-  gene_converter_file <- args[4]
-  metric <- args[5]
-  outfile_go <- args[6]
-  outfile_kegg <- args[7]
+  organismKEGG <- args[2]
+  gene_converter_file <- args[3]
+  metric <- args[4]
+  library_ <- args[5] # either "GO", "KEGG", or path to gmt file
+  outfile <- args[6]
+  keytype <- args[7] # keytype of input file
+  keytype_gmt <- args[8] # keytype of gmt file
 
   print(paste("Reading clusterProfiler input:", input_file))
 
-  #metric <- strsplit(basename(outfile_go), "syn.clusterProfiler\\.")[[1]][2]
+  #metric <- strsplit(basename(outfile), "syn.clusterProfiler\\.")[[1]][2]
   #metric <- strsplit(metric, "\\.")[[1]][1]
   print(paste("Metric:", metric))
 
@@ -110,8 +143,8 @@ if (!interactive()) {
       stop(paste("Organism not yet implemented:", organismKEGG))
   }
 
-  df <- convert_df(df, keytype, gene_converter_file)
+  df <- convert_df(df, keytype_in=keytype, gene_converter_file, keytype_target=keytype_gmt)
   #print(head(df))
-  run_clusterProfiler(df, outfile_go, outfile_kegg, metric, overwrite=FALSE, organism.KEGG=organismKEGG, organism.GO = OrgDb) 
+  run_clusterProfiler(df, outfile, metric, library_, overwrite=FALSE, organism.KEGG=organismKEGG, organism.GO = OrgDb, keytype_gmt=keytype_gmt) 
 
 }

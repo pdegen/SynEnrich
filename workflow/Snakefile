@@ -8,7 +8,12 @@ configfile: "config/config.yaml"
 input_file = config["input_file"]
 project_name = config["project_name"]
 metrics = config["metrics"]
-libraries = config["libraries"]
+
+libraries = config["libraries"] # either "GO", "KEGG", or path to gmt file
+lib_names = {os.path.splitext(os.path.basename(l))[0]: l for l in libraries}
+for l in lib_names: 
+    assert "." not in l
+
 tools = config["tools"]
 save_summary_dict = config["save_summary_dict"]
 qval = config["qval"]
@@ -19,10 +24,8 @@ gene_converter = f"results/{project_name}/gene_converter.csv"
 
 # ClusterProfiler params
 keytype = config["keytype"]
+keytype_gmt = config["keytype_gmt"]
 organismKEGG = config["organismKEGG"]
-
-# GSEApy params
-gseapy_use_enrichr = config["gseapy_use_enrichr"] # if false, use gmt files for GO
 
 # Define result paths based on project name
 gsea_output = (
@@ -36,10 +39,9 @@ summary_dict_output = (
 )
 
 all_intermediate_outputs = expand(
-    gsea_output, metric=metrics, library=libraries, tool=tools
+    gsea_output, metric=metrics, library=lib_names.keys(), tool=tools
 )  # [t for t in tools if t != "string"])
-final_configurations_outputs = expand(combined_configurations_output, library=libraries)
-
+final_configurations_outputs = expand(combined_configurations_output, library=lib_names.keys())
 
 # Define the final target files based on the method selected
 rule all:
@@ -69,21 +71,19 @@ rule run_clusterprofiler:
         infile=input_file,
         g=gene_converter,
     output:
-        go=(
-            f"results/{project_name}/syn.clusterProfiler.{{metric}}.GO.{project_name}.csv"
-            if "clusterProfiler" in tools and "GO" in libraries
-            else ""
-        ),
-        kegg=(
-            f"results/{project_name}/syn.clusterProfiler.{{metric}}.KEGG.{project_name}.csv"
-            if "clusterProfiler" in tools and "KEGG" in libraries
+        outfile=(
+            f"results/{project_name}/syn.clusterProfiler.{{metric}}.{{library}}.{project_name}.csv"
+            if "clusterProfiler" in tools
             else ""
         ),
     conda:
         "envs/environment.clusterprofiler.yaml"
+    params:
+        library_name = lambda wildcards: lib_names[wildcards.library],
     shell:
         """
-        Rscript workflow/scripts/run_clusterprofiler.R {input.infile} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {output.go} {output.kegg}
+        echo Running ClusterProfiler with: {wildcards} 
+        Rscript workflow/scripts/run_clusterprofiler.R {input.infile} {organismKEGG} {gene_converter} {wildcards.metric} {params.library_name} {output.outfile} {keytype} {keytype_gmt}
         """
 
 
@@ -93,21 +93,20 @@ rule run_gseapy:
         infile=input_file,
         g=gene_converter,
     output:
-        go=(
-            f"results/{project_name}/syn.gseapy.{{metric}}.GO.{project_name}.csv"
-            if "gseapy" in tools and "GO" in libraries
+        outfile=(
+            f"results/{project_name}/syn.gseapy.{{metric}}.{{library}}.{project_name}.csv"
+            if "gseapy" in tools
             else ""
         ),
-        kegg=(
-            f"results/{project_name}/syn.gseapy.{{metric}}.KEGG.{project_name}.csv"
-            if "gseapy" in tools and "KEGG" in libraries
-            else ""
-        ),
+    params:
+        library_name = lambda wildcards: lib_names[wildcards.library],
     conda:
         "envs/environment.yaml"
     shell:
         """
-        python workflow/scripts/run_gseapy.py {input.infile} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {output.go} {output.kegg} {gseapy_use_enrichr}
+        echo Running GSEApy with: {wildcards} 
+
+        python workflow/scripts/run_gseapy.py {input.infile} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {params.library_name} {output.outfile}
         """
 
 

@@ -1,5 +1,7 @@
 import pickle
 import pandas as pd
+import yaml
+from typing import Dict, Any
 
 def pickler(contents, filepath):
     """Store arbitrary Python object in filepath"""
@@ -38,3 +40,8 @@ def format_string_table(df: pd.DataFrame, library: str) -> pd.DataFrame:
     df["enrichmentScore"] = df["enrichmentScore"] * df["direction"].apply(lambda x: -1 if x == "top" else 1 if x == "bottom" else 0)
 
     return df
+
+def load_config(file_path: str) -> Dict[str, Any]:
+    with open(file_path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
