@@ -39,6 +39,7 @@ if __name__ == "__main__":
         config = yaml.safe_load(stream)
 
     libs = config.get('libraries', [])
+    libs = [lib.split(".gmt")[0] for lib in libs]
     tools = config.get('tools', [])
     metrics = config.get('metrics', [])
     project_name = config.get('project_name')

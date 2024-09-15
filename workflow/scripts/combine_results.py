@@ -1,8 +1,8 @@
 # scripts/combine_results.py
 
 import os
+import sys
 import argparse
-import yaml
 import glob
 from typing import Optional, List, Union, Dict, Any
 import numpy as np
@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 from statsmodels.stats.multitest import fdrcorrection
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from scripts.utils import load_config
 
 def stouffer_combined_p_value(p_values: Union[List[float], np.ndarray], 
                               weights: Optional[Union[List[float], np.ndarray]] = None) -> float:
@@ -80,11 +82,6 @@ def combine_results(dfs) -> pd.DataFrame:
 
     return summary_df
 
-def load_config(file_path: str) -> Dict[str, Any]:
-    with open(file_path, 'r') as file:
-        config = yaml.safe_load(file)
-    return config
-
 def format_table(tab: pd.DataFrame, tool: str, metric: str, library: str) -> pd.DataFrame:
     tab.rename({"NOM p-val": "pvalue", "ES": "enrichmentScore", 
                 "Term": "Description", "FDR q-val": "qvalue"}, axis=1, inplace=True)
@@ -92,18 +89,15 @@ def format_table(tab: pd.DataFrame, tool: str, metric: str, library: str) -> pd.
     # currently unused
     #tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
     #tab["Signed_Term"] = tab.index + "." + tab["Direction"]
-    
-    if library == "GO":
-        if tab.index.name != "ID":
-            tab.set_index("ID", drop=False)
-    elif library == "KEGG":
+
+    if library == "KEGG":
         # TO DO: fix this in clusterprofiler script
         if tool == "clusterProfiler" and " - Mus musculus (house mouse)" in tab["Description"].iloc[0]:
             tab["Description"] = tab["Description"].str.replace(" - Mus musculus (house mouse)", "")
         tab.set_index("Description", drop=False, inplace=True) # gseapy doesn't store KEGG IDs...
-    else:
-        raise Exception("Library not supported:", library)
-    
+
+    elif tab.index.name != "ID":
+        tab.set_index("ID", drop=False)
     
     tab.index.name = tool + "." + metric # hacky
 
@@ -133,8 +127,9 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
 
     for library in libraries:
 
-        tab_dict = dict()
+        if library.endswith(".gmt"): library = library.split(".gmt")[0]
 
+        tab_dict = dict()
         output_files_lib = [o for o in  output_files if library in o][0] # TO DO: careful
 
         for tool in tools:
