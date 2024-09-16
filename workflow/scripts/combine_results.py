@@ -100,7 +100,6 @@ def format_table(tab: pd.DataFrame, tool: str, metric: str, library: str) -> pd.
         tab.set_index("ID", drop=False)
     
     tab.index.name = tool + "." + metric # hacky
-
     return tab
 
 def main(savepath: str, output_files: List[str], project_name: str) -> None:
@@ -135,10 +134,13 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
         for tool in tools:
             for file in input_files:
 
-                if library not in file or tool not in file: 
+                filename = (os.path.basename(file))
+                file_tool, file_metric, file_lib = filename.split("syn.")[1].split(".")[:3]
+
+                if library != file_lib or tool != file_tool:
                     continue
 
-                metric = [m for m in metrics if m in file][0]  # TO DO: careful
+                metric = file_metric
 
                 sep = "\t" if os.path.splitext(file)[-1] == ".tsv" else ","
                 tab = pd.read_csv(file, index_col=0, sep = sep)
