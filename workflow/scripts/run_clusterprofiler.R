@@ -29,12 +29,28 @@ run_clusterProfiler <- function(df, outfile,
         stop(paste0("gmt file not found:", library_))
     }
     print(paste0("Running with custom gmt file:", library_))
+
     gmt <- read.gmt(library_)
     gmt$gene <- toupper(gmt$gene)
+
+    TERM2NAME <- read.table(library_, sep = "\t", header = FALSE, fill = TRUE, stringsAsFactors = FALSE)
+    TERM2NAME = TERM2NAME[c("V1","V2")]
+    colnames(TERM2NAME) <- c("term", "description")
+
+    # Keep only unique term and description pairs for TERM2NAME
+    TERM2NAME <- unique(TERM2NAME[, c("term", "description")])
+
+    # Ensure the terms in TERM2NAME are uppercase to match TERM2GENE
+    TERM2NAME$term <- toupper(TERM2NAME$term)
+
     names(geneList) <- toupper(df[[keytype_gmt]])
     geneList = sort(geneList, decreasing = TRUE)
+
+    #TERM2NAME <- unique(gmt[, c("term", "description")])
+
     ego3 <- GSEA(geneList     = geneList,
-              TERM2GENE = gmt,
+              TERM2GENE = gmt <- read.gmt(library_),
+              TERM2NAME = TERM2NAME,
               minGSSize    = minGSSize,
               maxGSSize    = maxGSSize,
               pvalueCutoff = 1,
@@ -42,6 +58,7 @@ run_clusterProfiler <- function(df, outfile,
               seed = TRUE,
               verbose = FALSE)
 
+    print(head(ego3))
     write.csv(ego3,outfile)
     print(paste("Wrote ClusterProfiler output to:", outfile))
 

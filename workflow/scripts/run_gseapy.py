@@ -132,7 +132,6 @@ def main() -> None:
 
     # https://gseapy.readthedocs.io/en/latest/faq.html#q-why-gene-symbols-in-enrichr-library-are-all-upper-cases-for-mouse-fly-fish-worm
     tab.index = tab.index.str.upper() # Enrichr supports only upper case
-
     run_gseapy_multi(tab, metric=metric, ontology=ontology, organismKEGG=organismKEGG, outfile=outfile)
 
 if __name__ == "__main__":
