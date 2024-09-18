@@ -4,7 +4,11 @@ import pandas as pd
 import yaml
 from typing import Dict, Any
 
-import mygene
+try:
+    import mygene
+except ModuleNotFoundError:
+    print("mygene not found")
+    pass
 
 def pickler(contents, filepath):
     """Store arbitrary Python object in filepath"""
@@ -62,16 +66,17 @@ def ensp_to_gene_symbol(ensp_ids, species):
 
 def create_gmt(df, output_file):
     # Group by term and description (or category), and collect the ensemblprot IDs into lists
-    grouped = df.groupby(['term', 'description'])['#string_protein_id'].apply(list).reset_index()
+    grouped = df.groupby(['term', 'category', 'description'])['#string_protein_id'].apply(list).reset_index()
     
     with open(output_file, 'w') as f:
         for _, row in grouped.iterrows():
             # Write each line in the required GMT format
             term = row['term']
+            cat = row['category']
             description = row['description']
             ensemblprot_list = row['#string_protein_id']
-            # Format the row: term, description, and list of ensemblprots
-            f.write(f"{term}\t{description}\t" + "\t".join(ensemblprot_list) + "\n")
+            # Format the row: term, cat, description, and list of ensemblprots
+            f.write(f"{term}\t{cat}\t{description}\t" + "\t".join(ensemblprot_list) + "\n")
 
 def create_string_gmt(infile, outfile, orgid, species=""):
     """
@@ -81,16 +86,15 @@ def create_string_gmt(infile, outfile, orgid, species=""):
 
     tab = pd.read_csv(infile, sep="\t")
     tab = tab[tab["term"].str.startswith("GO:")]
-
-    protids = list(set(tab["#string_protein_id"].str.split(f"{orgid}.").str[1]))
     
     prot2symbol_file = f"../../resources/Ontologies/prot2symbol.{species}.csv"
 
     if os.path.isfile(prot2symbol_file):
         gene_symbols = pd.read_csv(prot2symbol_file, index_col=0)
-        gene_symbols["SYMBOL"].to_dict()
+        gene_symbols = gene_symbols["SYMBOL"].to_dict()
     else:
         print("Retrieving gene symbols...")
+        protids = list(set(tab["#string_protein_id"].str.split(f"{orgid}.").str[1]))
         gene_symbols = ensp_to_gene_symbol(protids, species=species)
         df = pd.DataFrame(gene_symbols.values(), index=gene_symbols.keys(), columns=["SYMBOL"])
         df.to_csv(prot2symbol_file)
@@ -98,5 +102,11 @@ def create_string_gmt(infile, outfile, orgid, species=""):
     tab["#string_protein_id"] = tab["#string_protein_id"].str.replace(f"{orgid}.","")
     tab["#string_protein_id"] = tab["#string_protein_id"].map(gene_symbols).fillna(tab["#string_protein_id"])
     tab["#string_protein_id"] = tab["#string_protein_id"].str.upper()
+
+    cat_dict = {"Biological Process (Gene Ontology)": "BP",
+                "Cellular Component (Gene Ontology)": "CC",
+                "Molecular Function (Gene Ontology)": "MF"}
+
+    tab["category"] = tab["category"].replace(cat_dict)
 
     create_gmt(tab, outfile)
