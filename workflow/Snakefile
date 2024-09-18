@@ -16,6 +16,7 @@ for l in lib_names:
 
 tools = config["tools"]
 save_summary_dict = config["save_summary_dict"]
+make_figs = config["make_figs"]
 qval = config["qval"]
 savepath = f"results/{project_name}"
 
@@ -43,12 +44,26 @@ all_intermediate_outputs = expand(
 )  # [t for t in tools if t != "string"])
 final_configurations_outputs = expand(combined_configurations_output, library=lib_names.keys())
 
+if make_figs:
+
+    lollipop_plots = (f"results/{project_name}/figures/lollipop.{{library}}.{project_name}.pdf")
+    bar_plots = (f"results/{project_name}/figures/bars.{project_name}.pdf")
+    upset_plots = (f"results/{project_name}/figures/upset.{{library}}.{project_name}.pdf")
+    venn_metric = (f"results/{project_name}/figures/venn.metriccomp.{project_name}.pdf")
+    venn_method = (f"results/{project_name}/figures/venn.methodcomp.{project_name}.pdf")
+    all_lollipop = expand(lollipop_plots, library=lib_names.keys())
+    all_upset = expand(upset_plots, library=lib_names.keys())
+    all_figs = all_upset + all_lollipop + [bar_plots, venn_method, venn_metric]
+else:
+    all_figs = []
+
 # Define the final target files based on the method selected
 rule all:
     input:
         summary_dict_output,
         final_configurations_outputs,
         all_intermediate_outputs,
+        all_figs,
 
 
 # Rule for creating gene name converter table
@@ -136,4 +151,16 @@ rule combine_results_from_different_libraries:
     shell:
         """
         python workflow/scripts/combine_libs.py 
+        """
+
+rule make_plots:
+    input:
+        summary_dict_output,
+    output:
+        all_figs,
+    conda:
+        "envs/environment.yaml"
+    shell:
+        """
+        python workflow/scripts/plots.py
         """
