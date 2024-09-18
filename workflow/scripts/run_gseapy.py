@@ -76,7 +76,9 @@ def run_gseapy_multi(
         res = run_gseapy(input, ontology, outdir, **kwargs)
         res_merged = res.res2d
         gmt_df = read_gmt(ontology)
-        res_merged = res_merged.merge(gmt_df[['Description']], left_index=True, right_index=True, how='left')
+        res_merged = res_merged.merge(gmt_df[['Description','Category']], left_index=True, right_index=True, how='left')
+        res_merged.drop("Ontology", axis=1, inplace=True)
+        res_merged.rename({"Category":"ONTOLOGY"}, axis=1, inplace=True)
 
     elif ont_id == "GO":
         res_list = []
@@ -114,10 +116,11 @@ def read_gmt(gmt_file):
     with open(gmt_file) as file:
         for line in file:
             parts = line.strip().split('\t')
-            if len(parts) >= 3:
-                description = parts[1]
-                genes = parts[2:]
-                gene_sets.append({'Description': description, 'genes': genes})
+            if len(parts) >= 4:
+                category = parts[1]
+                description = parts[2]
+                genes = parts[3:]
+                gene_sets.append({'Description': description, 'Category': category, 'Genes': genes})
     return pd.DataFrame(gene_sets)
 
 def main() -> None:

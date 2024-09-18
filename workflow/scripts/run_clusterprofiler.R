@@ -34,19 +34,20 @@ run_clusterProfiler <- function(df, outfile,
     gmt$gene <- toupper(gmt$gene)
 
     TERM2NAME <- read.table(library_, sep = "\t", header = FALSE, fill = TRUE, stringsAsFactors = FALSE)
-    TERM2NAME = TERM2NAME[c("V1","V2")]
+    TERM2CAT = TERM2NAME[c("V1","V2")]
+    TERM2NAME = TERM2NAME[c("V1","V3")]
     colnames(TERM2NAME) <- c("term", "description")
+    colnames(TERM2CAT) <- c("term", "ONTOLOGY")
 
     # Keep only unique term and description pairs for TERM2NAME
     TERM2NAME <- unique(TERM2NAME[, c("term", "description")])
+    TERM2CAT <- unique(TERM2CAT[, c("term", "ONTOLOGY")])
 
     # Ensure the terms in TERM2NAME are uppercase to match TERM2GENE
     TERM2NAME$term <- toupper(TERM2NAME$term)
 
     names(geneList) <- toupper(df[[keytype_gmt]])
     geneList = sort(geneList, decreasing = TRUE)
-
-    #TERM2NAME <- unique(gmt[, c("term", "description")])
 
     ego3 <- GSEA(geneList     = geneList,
               TERM2GENE = gmt <- read.gmt(library_),
@@ -58,8 +59,8 @@ run_clusterProfiler <- function(df, outfile,
               seed = TRUE,
               verbose = FALSE)
 
-    print(head(ego3))
-    write.csv(ego3,outfile)
+    ego3 <- merge(ego3, TERM2CAT, by.x = "ID", by.y = "term", all.x = TRUE, row.names = "ID")
+    write.csv(ego3,outfile, row.names=FALSE)
     print(paste("Wrote ClusterProfiler output to:", outfile))
 
   } else if ((library_=="GO" && !file.exists(outfile)) || overwrite) {
