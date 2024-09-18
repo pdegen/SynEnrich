@@ -1,8 +1,24 @@
+import os
+import sys
 import warnings
+import yaml
+import pickle
+from typing import Dict, List
 
+import numpy as np
+import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
-import seaborn as sns
 from matplotlib_venn import venn2, venn3
+from matplotlib.ticker import MaxNLocator
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
+import seaborn as sns
+
+from upsetplot import from_memberships
+from upsetplot import UpSet
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from scripts.explore_results import get_sig_dict
 
 def npg_palette():
     palette = ["#E64B35FF", "#4DBBD5FF", "#00A087FF", "#3C5488FF", "#F39B7FFF",
@@ -48,3 +64,268 @@ def plot_venn(sig_dict, tools, metrics, ax = None, pretty_print=None):
     
     if not ax:
         return fig
+
+def make_bar_plots(summary_dict: Dict, 
+                    figpath: str,
+                    project_name: str,
+                    lib_names: Dict,
+                    pretty_print: Dict,
+                    qval: float = 0.05,
+                    palette = npg_palette(),
+                    max_depth: int = 0):
+
+    sns.set_theme(font_scale=1.2)
+
+    nlib = len(lib_names.keys())
+
+    with sns.axes_style("whitegrid"):
+        fig, axes = plt.subplots(2, nlib, figsize=(nlib*5,10))
+    axes = axes.flatten()
+
+    ### Intersection depth
+
+    for ax, lib in zip(axes[:nlib],lib_names.keys()):
+        depth_df = summary_dict[lib]["depth_df"]
+        if len(depth_df) < 1:
+            print(f"No terms found for {lib}")
+            continue
+        h = sns.histplot(depth_df['Depth'], bins=depth_df['Depth'].max() - depth_df['Depth'].min() + 1, 
+                    discrete=True, ax=ax, alpha=1, color=palette[3])
+        h.bar_label(h.containers[0])
+        ax.set(title=lib, xlabel="Robustness", ylabel="Terms")
+        xmax = max_depth if max_depth else depth_df['Depth'].max()
+        ax.set_xticks(range(1, xmax+1))
+        ax.set_xlim(0.25,xmax+0.75)
+        ax.grid(axis='x')        
+        
+    ### Number of terms
+
+    for ax, lib in zip(axes[nlib:], lib_names.keys()):
+        summary_df = summary_dict[lib]["summary_df"]
+        qv = summary_df.drop(["Combined","nan"], axis=1, level=0)
+        qv = qv.xs("qvalue", level=2, axis=1)
+        qv = qv.replace(np.nan,1)
+        qv = qv < qval
+
+        qqv=qv.sum().reset_index()
+        if pretty_print:
+            qqv.replace({"Tool": pretty_print, "Metric": pretty_print}, inplace=True)
+        qqv.index = qqv["Tool"] + "\n" + qqv["Metric"]
+        qqv = qqv.drop(["Tool","Metric"], axis=1)
+        qqv = qqv.sort_values(by=qqv.columns[0], ascending=False)
+
+        if ax == axes[nlib]:
+            hue_order = {qqv.index[i]: palette[i] for i in range(len(qqv))}
+
+        qqv["hue"] = qqv.index
+        b = sns.barplot(data=qqv, x=qqv.index, y=qqv.iloc[:, 0], ax=ax, alpha=1, hue = 'hue', palette=palette, hue_order=hue_order)
+        for i in b.containers:
+            b.bar_label(i,)
+            
+        ax.set_xticks(ax.get_xticks(), ax.get_xticklabels(), rotation=60, ha='right')
+        ax.set(title=lib, ylabel="Terms", xlabel=None)
+        
+        # apply offset transform to all x ticklabels.
+        offset = matplotlib.transforms.ScaledTranslation(12/72., 3/72., fig.dpi_scale_trans)
+        for label in ax.xaxis.get_majorticklabels():
+            label.set_transform(label.get_transform() + offset)
+    for i in range(len(axes)):
+        axes[i].annotate(chr(ord('A')+i), xy=(-0.08, 1.04), xycoords="axes fraction", weight="bold", va='center',ha='center', fontsize=18)
+
+    fig.tight_layout()
+    fig.savefig(f"{figpath}/bars.{project_name}.pdf")
+
+
+def make_venn_plots(summary_dict, 
+                    figpath: str,
+                    project_name: str,
+                    lib_names: Dict,
+                    metrics: List,
+                    tools: List,
+                    pretty_print: Dict = None,
+                    qval = 0.05):
+
+    fig, ax = plt.subplots(len(lib_names.keys()), len(metrics), figsize=(len(metrics)*4,len(lib_names.keys())*4))
+    if len(lib_names.keys()) == 1: ax = np.expand_dims(ax, axis=1).T
+    if len(metrics) == 1: ax = np.array([ax]).T
+
+    for i, lib in enumerate(lib_names.keys()):
+        summary_df = summary_dict[lib]["summary_df"]
+        sig_dict = get_sig_dict(summary_df, tools, metrics, qval=qval)
+        for j, metric in enumerate(metrics):
+            plot_venn(sig_dict, tools, metric, ax[i][j], pretty_print)
+            ax[i][j].set_title(f"{pretty_print[metric] if pretty_print else metric} ({lib})", fontweight='bold')
+
+    fig.tight_layout()
+    fig.savefig(f"{figpath}/venn.methodcomp.{project_name}.pdf")
+
+
+    fig, ax = plt.subplots(len(lib_names.keys()), 3, figsize=(12,len(lib_names.keys())*4))
+    if len(lib_names.keys()) == 1: ax = np.expand_dims(ax, axis=1).T
+    if len(metrics) == 1: ax = np.array([ax]).T
+
+    for i, lib in enumerate(lib_names.keys()):
+        summary_df = summary_dict[lib]["summary_df"]
+        sig_dict = get_sig_dict(summary_df, tools, metrics, qval=0.05)
+        for j, tool in enumerate(tools):
+            plot_venn(sig_dict, tool, metrics, ax[i][j], pretty_print)
+            ax[i][j].set_title(f"{pretty_print[tool] if pretty_print else tool} ({lib})", fontweight='bold')
+
+    fig.tight_layout()
+    fig.savefig(f"{figpath}/venn.metriccomp.{project_name}.pdf")
+
+
+def make_upset_plots(summary_dict: Dict, 
+                    lib_names: Dict,
+                    figpath: str,
+                    project_name: str,
+                    pretty_print: Dict = None):
+
+    for lib in lib_names.keys():
+
+        depth_df = summary_dict[lib]["depth_df"]
+        if len(depth_df) < 1:
+            print(f"No terms found for {lib}")
+            continue
+        memberships = depth_df["Configurations"]
+        memberships_list = [categories.split(" | ") for categories in memberships.values]
+        upset_ready = from_memberships(memberships_list)
+        upset_ready.index.names = [" ".join([pretty_print[i] if pretty_print else i for i in u.split(".")]) for u in upset_ready.index.names] # pretty print
+
+        pd.options.mode.copy_on_write = False
+        UpSet(upset_ready, subset_size="count", sort_by="cardinality", show_counts="{:,}").plot()
+        pd.options.mode.copy_on_write = True
+        plt.savefig(f"{figpath}/upset.{lib}.{project_name}.pdf")
+
+
+def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title=None):
+
+    df["SignedDepth"] = df["Depth"] * df["Direction"].apply(lambda x: 1 if x == "Up" else 0 if x == "Both" else -1)
+    df["logFDR"] = -np.log10(df["Combined FDR"])
+    ordered_df = df.sort_values(by="SignedDepth")
+
+    my_range=range(1,len(df.index)+1)
+
+    max_label_length = max(len(label) for label in ordered_df["Description"])
+    
+    with sns.axes_style("ticks"):
+        fig_width = 4 + max_label_length * 0.08
+        fig_height = max(1.8,len(df)//3)
+        fig, ax = plt.subplots(1,1,figsize=(fig_width,fig_height))
+
+
+    ax.hlines(y=my_range, xmin=0, xmax=ordered_df["SignedDepth"], zorder=98, color="grey")
+    sns.scatterplot(data=ordered_df, x="SignedDepth", y=range(1,1+len(ordered_df)), hue="logFDR", ax=ax, zorder=99, s=100)
+
+    ax.set_yticks(my_range, ordered_df['Description'])
+
+    ax.set(title=f"Top {lib} terms {project_name}" if title == None else title)
+
+    ### COLOR BAR
+    cmap = sns.cubehelix_palette(as_cmap=True)
+    norm = plt.Normalize(ordered_df['logFDR'].min(), ordered_df['logFDR'].max())
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+
+    # Remove the legend and add a colorbar
+    ax.get_legend().remove()
+    fig.colorbar(sm, cax=cax)
+    #clb.ax.set_title('This is a title')
+    fig.axes[1].set(title='-logFDR', xlabel='', ylabel='')
+
+
+    # some extra spacing top and bottom
+    ax.set_ylim(my_range[0]-1, my_range[-1]+1)
+
+    if max_depth:
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        #ax.set_xticks(range(-max_depth, max_depth+1))
+
+    if max_depth > 0:
+        low, high = ax.get_xlim()
+        if ordered_df["SignedDepth"].max() > 0: high = max_depth + 0.5
+        if ordered_df["SignedDepth"].min() < 0: low = -max_depth-0.5
+        ax.set_xlim(low,high)
+        if low == -max_depth-0.5 and high == max_depth + 0.5:
+            ax.axvline(0, ls="--",color="grey")
+
+    fig.tight_layout()
+    fig.savefig(f"{figpath}/lollipop.{lib}.{project_name}.{ext}")
+
+def make_lollipop_plots(summary_dict: Dict,
+                        lib_names: Dict,
+                        figpath: str,
+                        project_name: str,
+                        top_terms: int = 30,
+                        qval: float = 0.05,
+                        depth_cutoff: int = 1,
+                        max_depth: int = 0,
+                        ext: str = "pdf"):
+
+    sns.set_theme(font_scale=1)
+
+    def save_empty(lib):
+        fig, ax = plt.subplots(1,1)
+        ax.set_title(f"No terms found for {lib}")
+        fig.savefig(f"{figpath}/lollipop.{lib}.{project_name}.{ext}")
+
+    for lib in lib_names.keys():
+
+        d = summary_dict[lib]["depth_df"]
+        if len(d) < 1:
+            print(f"No terms found for {lib}")
+            save_empty(lib)
+            continue
+        if "Direction" not in d:
+            d["Direction"] = d.index.str.split("_").str[1].str.strip()
+        d.index = d.index.str.split("_").str[0]
+        d.rename({"Factors":"Configurations"}, axis=1, inplace=True)
+        d["Combined FDR"] = summary_dict[lib]["summary_df"].loc[d.index,("Combined","nan","Combined FDR")]
+        # TO DO: refactor this
+        d.sort_values(by=["Depth","Combined FDR"], ascending=[False,True], inplace=True)
+        outfile = f"{figpath}/../combined/syn.depth.{lib}.{project_name}.csv"
+        d = d[["Description","Depth","Direction","Combined FDR","Configurations"]]
+        d.to_csv(outfile)
+        
+        dd = d[(d["Depth"]>depth_cutoff) & (d["Combined FDR"]< qval)]
+        if len(dd) < 1:
+            print(f"No terms found for {lib}")
+            save_empty(lib)
+            continue
+
+        title = f"Top {lib} terms\n{project_name}"
+        lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext="pdf", max_depth = max_depth, title=title)
+
+
+if __name__ == "__main__":
+
+    config_file_path = os.path.join("config", "config.yaml")
+
+    with open(config_file_path, 'r') as stream:
+        config = yaml.safe_load(stream)
+
+    libraries = config.get('libraries', [])
+    lib_names = {os.path.splitext(os.path.basename(l))[0]: l for l in libraries}
+
+    tools = config.get('tools', [])
+    metrics = config.get('metrics', [])
+    pretty_print = config.get('pretty_print', {})
+    project_name = config.get('project_name')
+    qval = config.get('qval')
+    max_depth = len(metrics) * len(tools)
+    figpath = os.path.join("results",project_name,"figures")
+
+    summary_dict_file = os.path.join("results",project_name,"combined",f"syn.summary_dict.{project_name}.txt")
+
+    with open(summary_dict_file, "rb") as f:
+        summary_dict = pickle.load(f)
+
+    make_bar_plots(summary_dict, figpath, project_name, lib_names, pretty_print, qval = qval, max_depth = max_depth)
+    make_venn_plots(summary_dict, figpath, project_name, lib_names, metrics, tools, pretty_print, qval = qval)
+    make_upset_plots(summary_dict, lib_names, figpath, project_name, pretty_print)
+    make_lollipop_plots(summary_dict, lib_names, figpath, project_name, top_terms = 30, qval = qval, depth_cutoff = 1, max_depth = max_depth)
+
+    
