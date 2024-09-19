@@ -5,7 +5,7 @@ import yaml
 import pandas as pd
 from typing import List, Dict
 from explore_results import get_sig_dict, create_intersection_depth_df
-from utils import pickler
+from utils import pickler, read_enrichr
 
 def create_summary_dict(savepath: str,
          libs: List[str],
@@ -63,9 +63,20 @@ def format_depth_df(depth_df: pd.DataFrame,
 
     d.sort_values(by=["Depth","Combined FDR"], ascending=[False,True], inplace=True)
 
+    # Column order
     cols = ["Description","Depth","Direction","Combined FDR"]
+
     if "ONTOLOGY" in d.columns:
         cols.append("ONTOLOGY")
+
+    # Check which terms are in Enrichr library
+    enrichr = "resources/Ontologies/GO_Enrichr_2023.gmt" # TO DO: pass as arg
+    if os.path.isfile(enrichr):
+        print("Enrichr gmt file found, adding info to depth df")
+        enrichr_df = read_enrichr(enrichr)
+        d["Enrichr"] = d.index.isin(enrichr_df.index)
+        cols.append("Enrichr")
+    
     cols.append("Configurations")
 
     d = d[cols]

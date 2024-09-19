@@ -110,3 +110,18 @@ def create_string_gmt(infile, outfile, orgid, species=""):
     tab["category"] = tab["category"].replace(cat_dict)
 
     create_gmt(tab, outfile)
+
+def read_enrichr(gmt_file):
+    gene_sets = []
+    with open(gmt_file) as file:
+        for line in file:
+            parts = line.strip().split('\t')
+            if len(parts) >= 2:
+                description = parts[0]
+                genes = parts[2:] # 2nd col is empty?
+                gene_sets.append({'Description': description, 'Genes': genes})
+    df = pd.DataFrame(gene_sets)
+    df.index = "GO:" + df["Description"].str.split("\(GO:").str[1].str[:-1]
+    df.index.name = "ID"
+    df["Description"] = df["Description"].str.split("\(GO:").str[0]
+    return df
