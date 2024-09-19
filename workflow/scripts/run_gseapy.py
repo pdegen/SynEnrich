@@ -5,7 +5,9 @@ import sys
 import numpy as np
 import pandas as pd
 import gseapy
-from typing import Union, List
+from typing import Union
+
+from utils import read_gmt
 
 def convert_gseapy_table(tab: pd.DataFrame, ont_id: str) -> None:
     '''Convert GSEApy columns to match clusterProfiler'''
@@ -29,7 +31,7 @@ def convert_gseapy_table(tab: pd.DataFrame, ont_id: str) -> None:
     if "ID" not in tab.columns:
         raise Exception("ID not found in results table, make sure gmt file has column called 'ID' or 'Term'")
     
-    tab.set_index("ID", inplace=True, drop=False)
+    tab.set_index("ID", inplace=True, drop=True)
 
 def run_gseapy_multi(   
     tab: pd.DataFrame, 
@@ -76,7 +78,8 @@ def run_gseapy_multi(
         res = run_gseapy(input, ontology, outdir, **kwargs)
         res_merged = res.res2d
         gmt_df = read_gmt(ontology)
-        res_merged = res_merged.merge(gmt_df[['Description','Category']], left_index=True, right_index=True, how='left')
+        gmt_df.set_index("ID", inplace=True)
+        res_merged = res_merged.merge(gmt_df[['Description','Category']], left_on="Term", right_index=True, how='left')
         res_merged.drop("Ontology", axis=1, inplace=True)
         res_merged.rename({"Category":"ONTOLOGY"}, axis=1, inplace=True)
 
@@ -110,18 +113,6 @@ def run_gseapy(input: Union[pd.DataFrame, pd.Series], ontology: str, outdir: str
                           **kwargs)
     res.res2d["Ontology"] = ontology
     return res
-
-def read_gmt(gmt_file):
-    gene_sets = []
-    with open(gmt_file) as file:
-        for line in file:
-            parts = line.strip().split('\t')
-            if len(parts) >= 4:
-                category = parts[1]
-                description = parts[2]
-                genes = parts[3:]
-                gene_sets.append({'Description': description, 'Category': category, 'Genes': genes})
-    return pd.DataFrame(gene_sets)
 
 def main() -> None:
     tab = pd.read_csv(input_file, index_col=0)

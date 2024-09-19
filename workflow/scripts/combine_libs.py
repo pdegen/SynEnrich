@@ -5,10 +5,10 @@ import yaml
 import pandas as pd
 from typing import List, Dict
 from explore_results import get_sig_dict, create_intersection_depth_df
-from utils import pickler, read_enrichr
+from utils import pickler, read_enrichr, read_gmt
 
 def create_summary_dict(savepath: str,
-         libs: List[str],
+         lib_names: Dict[str, str],
          tools: List[str],
          metrics: List[str],
          project_name: str,
@@ -16,6 +16,7 @@ def create_summary_dict(savepath: str,
          save = False,
          ) -> Dict:
 
+    libs = lib_names.keys()
     summary_dict: Dict = {lib: dict() for lib in libs}
     for lib in libs:
         summary_df = pd.read_csv(f"{savepath}/syn.combined.{lib}.{project_name}.csv", index_col=0, header=[0,1,2])
@@ -23,7 +24,7 @@ def create_summary_dict(savepath: str,
         summary_dict[lib]["summary_df"] = summary_df
         sig_dict = get_sig_dict(summary_df, tools, metrics, qval=qval, verbose=True)
         depth_df = create_intersection_depth_df(sig_dict)
-        depth_df = format_depth_df(depth_df, project_name, savepath, lib, summary_df)
+        depth_df = format_depth_df(depth_df, project_name, savepath, lib, lib_names, summary_df)
         summary_dict[lib]["depth_df"] = depth_df
 
     # Store results in dictionary for meta-analysis
@@ -38,6 +39,7 @@ def format_depth_df(depth_df: pd.DataFrame,
                     project_name: str,
                     savepath: str,
                     lib: str,
+                    lib_names: Dict[str, str],
                     summary_df: pd.DataFrame
                     ) -> pd.DataFrame:
     
@@ -90,7 +92,7 @@ if __name__ == "__main__":
         config = yaml.safe_load(stream)
 
     libs = config.get('libraries', [])
-    libs = [lib.split(".gmt")[0] for lib in libs]
+    lib_names = {lib.split(".gmt")[0]: lib for lib in libs}
     tools = config.get('tools', [])
     metrics = config.get('metrics', [])
     project_name = config.get('project_name')
@@ -98,7 +100,7 @@ if __name__ == "__main__":
     save = config.get('save_summary_dict')
     savepath = os.path.join("results",project_name,"combined")
 
-    create_summary_dict(savepath, libs, tools, metrics, project_name, qval, save)
+    create_summary_dict(savepath, lib_names, tools, metrics, project_name, qval, save)
 
 
 

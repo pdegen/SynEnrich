@@ -125,3 +125,16 @@ def read_enrichr(gmt_file):
     df.index.name = "ID"
     df["Description"] = df["Description"].str.split("\(GO:").str[0]
     return df
+
+def read_gmt(gmt_file):
+    gene_sets = []
+    with open(gmt_file) as file:
+        for line in file:
+            parts = line.strip().split('\t')
+            if len(parts) >= 4:
+                id = parts[0]
+                category = parts[1]
+                description = parts[2]
+                genes = parts[3:]
+                gene_sets.append({'ID': id, 'Description': description, 'Category': category, 'Genes': genes})
+    return pd.DataFrame(gene_sets)
