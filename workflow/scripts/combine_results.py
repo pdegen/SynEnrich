@@ -143,6 +143,8 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
         tab_dict = dict()
         output_files_lib = [o for o in  output_files if library in o][0] # TO DO: careful
 
+        isGO = library.startswith("GO") # TO DO: careful
+
         for tool in tools:
             for file in input_files:
 
@@ -164,8 +166,6 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
                     tab["Direction"] = tab["direction"].apply(lambda x: "Up" if x == "bottom" else "Down" if x == "top" else "Both")
                 else:
                     tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
-
-        isGO = tab.index[0].startswith("GO:")
 
         ### Combine results
         cols = ["enrichmentScore","pvalue","qvalue","Description","Direction"]
