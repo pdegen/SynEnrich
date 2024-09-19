@@ -72,7 +72,8 @@ def make_bar_plots(summary_dict: Dict,
                     pretty_print: Dict,
                     qval: float = 0.05,
                     palette = npg_palette(),
-                    max_depth: int = 0):
+                    max_depth: int = 0,
+                    ext: str = "pdf"):
 
     sns.set_theme(font_scale=1.2)
 
@@ -133,7 +134,7 @@ def make_bar_plots(summary_dict: Dict,
         axes[i].annotate(chr(ord('A')+i), xy=(-0.08, 1.04), xycoords="axes fraction", weight="bold", va='center',ha='center', fontsize=18)
 
     fig.tight_layout()
-    fig.savefig(f"{figpath}/bars.{project_name}.pdf")
+    fig.savefig(f"{figpath}/bars.{project_name}.{ext}")
 
 
 def make_venn_plots(summary_dict, 
@@ -143,7 +144,8 @@ def make_venn_plots(summary_dict,
                     metrics: List,
                     tools: List,
                     pretty_print: Dict = {},
-                    qval = 0.05):
+                    qval = 0.05,
+                    ext: str = "pdf"):
 
     fig, ax = plt.subplots(len(lib_names.keys()), len(metrics), figsize=(len(metrics)*4,len(lib_names.keys())*4))
     if len(lib_names.keys()) == 1: ax = np.expand_dims(ax, axis=1).T
@@ -157,7 +159,7 @@ def make_venn_plots(summary_dict,
             ax[i][j].set_title(f"{pretty_print[metric] if pretty_print else metric} ({lib})", fontweight='bold')
 
     fig.tight_layout()
-    fig.savefig(f"{figpath}/venn.methodcomp.{project_name}.pdf")
+    fig.savefig(f"{figpath}/venn.methodcomp.{project_name}.{ext}")
 
 
     fig, ax = plt.subplots(len(lib_names.keys()), 3, figsize=(12,len(lib_names.keys())*4))
@@ -172,20 +174,22 @@ def make_venn_plots(summary_dict,
             ax[i][j].set_title(f"{pretty_print[tool] if pretty_print else tool} ({lib})", fontweight='bold')
 
     fig.tight_layout()
-    fig.savefig(f"{figpath}/venn.metriccomp.{project_name}.pdf")
+    fig.savefig(f"{figpath}/venn.metriccomp.{project_name}.{ext}")
 
 
 def make_upset_plots(summary_dict: Dict, 
                     lib_names: Dict,
                     figpath: str,
                     project_name: str,
-                    pretty_print: Dict = {}):
+                    pretty_print: Dict = {},
+                    ext: str = "pdf"):
 
     for lib in lib_names.keys():
-
+        outfile = f"{figpath}/upset.{lib}.{project_name}.{ext}"
         depth_df = summary_dict[lib]["depth_df"]
         if len(depth_df) < 1:
             print(f"No terms found for {lib}")
+            save_empty(outfile, lib)
             continue
         memberships = depth_df["Configurations"]
         memberships_list = [categories.split(" | ") for categories in memberships.values]
@@ -195,17 +199,21 @@ def make_upset_plots(summary_dict: Dict,
         pd.options.mode.copy_on_write = False
         UpSet(upset_ready, subset_size="count", sort_by="cardinality", show_counts="{:,}").plot()
         pd.options.mode.copy_on_write = True
-        plt.savefig(f"{figpath}/upset.{lib}.{project_name}.pdf")
+        plt.savefig(outfile)
 
 
-def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title=None):
+def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title=None, suffix=""):
+
+    outfile = f"{figpath}/lollipop{'.' + suffix if suffix != '' else ''}.{lib}.{project_name}.{ext}"
+    if len(df) < 1:
+        save_empty(outfile, lib)
+        return
 
     df["SignedDepth"] = df["Depth"] * df["Direction"].apply(lambda x: 1 if x == "Up" else 0 if x == "Both" else -1)
     df["logFDR"] = -np.log10(df["Combined FDR"])
     ordered_df = df.sort_values(by="SignedDepth")
 
-    my_range=range(1,len(df.index)+1)
-
+    my_range=range(1, len(df.index)+1)
     max_label_length = max(len(label) for label in ordered_df["Description"])
     
     with sns.axes_style("ticks"):
@@ -253,7 +261,7 @@ def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title
             ax.axvline(0, ls="--",color="grey")
 
     fig.tight_layout()
-    fig.savefig(f"{figpath}/lollipop.{lib}.{project_name}.{ext}")
+    fig.savefig(outfile)
 
 def make_lollipop_plots(summary_dict: Dict,
                         lib_names: Dict,
@@ -267,29 +275,36 @@ def make_lollipop_plots(summary_dict: Dict,
 
     sns.set_theme(font_scale=1)
 
-    def save_empty(lib):
-        fig, ax = plt.subplots(1,1)
-        ax.set_title(f"No terms found for {lib}")
-        fig.savefig(f"{figpath}/lollipop.{lib}.{project_name}.{ext}")
-
     for lib in lib_names.keys():
 
         d = summary_dict[lib]["depth_df"]
-        
+
         if len(d) < 1:
             print(f"No terms found for {lib}")
-            save_empty(lib)
+            save_empty(f"{figpath}/lollipop.{lib}.{project_name}.{ext}", lib)
             continue
         
         dd = d[(d["Depth"]>depth_cutoff) & (d["Combined FDR"]< qval)]
         if len(dd) < 1:
             print(f"No terms found for {lib}")
-            save_empty(lib)
+            save_empty(f"{figpath}/lollipop.{lib}.{project_name}.{ext}", lib)
             continue
 
-        title = f"Top {lib} terms\n{project_name}"
-        lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext="pdf", max_depth = max_depth, title=title)
+        title = f"Top {lib}\n{project_name}"
+        lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title)
 
+        # subset plots to enrichr terms
+        if "Enrichr" in dd:
+            title = f"Top {lib}\nEnrichr filtered\n{project_name}"
+            dd  = dd[dd["Enrichr"]]
+            if len(dd) > 1:
+                lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, suffix="enrichr")
+
+# Save dummy figs to prevent SnakeMake jobs from failing when no terms are found
+def save_empty(outfile, lib):
+    fig, ax = plt.subplots(1,1)
+    ax.set_title(f"No terms found for {lib}")
+    fig.savefig(outfile)
 
 if __name__ == "__main__":
 
@@ -309,14 +324,19 @@ if __name__ == "__main__":
     max_depth = len(metrics) * len(tools)
     figpath = os.path.join("results",project_name,"figures")
 
+    fig_formats = config.get('fig_formats', [])
+    if isinstance(fig_formats, str):
+        fig_formats = [fig_formats]
+
     summary_dict_file = os.path.join("results",project_name,"combined",f"syn.summary_dict.{project_name}.txt")
 
     with open(summary_dict_file, "rb") as f:
         summary_dict = pickle.load(f)
 
-    make_bar_plots(summary_dict, figpath, project_name, lib_names, pretty_print, qval = qval, max_depth = max_depth)
-    make_venn_plots(summary_dict, figpath, project_name, lib_names, metrics, tools, pretty_print, qval = qval)
-    make_upset_plots(summary_dict, lib_names, figpath, project_name, pretty_print)
-    make_lollipop_plots(summary_dict, lib_names, figpath, project_name, top_terms = 30, qval = qval, depth_cutoff = 1, max_depth = max_depth)
+    for ext in fig_formats:
+        make_bar_plots(summary_dict, figpath, project_name, lib_names, pretty_print, qval = qval, max_depth = max_depth, ext=ext)
+        make_venn_plots(summary_dict, figpath, project_name, lib_names, metrics, tools, pretty_print, qval = qval, ext=ext)
+        make_upset_plots(summary_dict, lib_names, figpath, project_name, pretty_print, ext=ext)
+        make_lollipop_plots(summary_dict, lib_names, figpath, project_name, top_terms = 30, qval = qval, depth_cutoff = 1, max_depth = max_depth, ext=ext)
 
     
