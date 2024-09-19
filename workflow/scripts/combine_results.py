@@ -4,10 +4,9 @@ import os
 import sys
 import argparse
 import glob
-from typing import Optional, List, Union, Dict, Any
+from typing import Optional, List, Union
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from scipy.stats import norm
 from statsmodels.stats.multitest import fdrcorrection
 
@@ -34,7 +33,7 @@ def mean_pval(pvals):
 
 
 ## TO DO: refactor
-def combine_results(dfs) -> pd.DataFrame:
+def combine_results(dfs, isGO: bool = False) -> pd.DataFrame:
 
     combined_df = pd.concat(dfs, axis=1, keys=[d.index.name for d in dfs])
     combined_df.columns = pd.MultiIndex.from_product([combined_df.columns.levels[0], combined_df.columns.levels[1]])
@@ -61,12 +60,17 @@ def combine_results(dfs) -> pd.DataFrame:
     
     #summary_df = pd.concat([summary_df, summary_df_uncommon], axis=0)
 
-    def combine_descriptions(row):
-        descriptions = row.dropna().unique()
-        return descriptions[0] if descriptions.size > 0 else np.nan
+    def combine_col(row):
+        vals = row.dropna().unique()
+        return vals[0] if vals.size > 0 else np.nan
 
-    summary_df['Description'] = summary_df.loc[:, pd.IndexSlice[:, 'Description']].apply(combine_descriptions, axis=1)
+    summary_df['Description'] = summary_df.loc[:, pd.IndexSlice[:, 'Description']].apply(combine_col, axis=1)
     summary_df.drop("Description", level=1, axis=1, inplace=True)
+
+    if isGO:
+        summary_df['ONTOLOGY'] = summary_df.loc[:, pd.IndexSlice[:, 'ONTOLOGY']].apply(combine_col, axis=1)
+        summary_df.drop("ONTOLOGY", level=1, axis=1, inplace=True)
+
     
     # Better multiindex
     lvl0 = summary_df.columns.get_level_values(level = 0)
@@ -74,8 +78,15 @@ def combine_results(dfs) -> pd.DataFrame:
     lvl00 = summary_df.columns.get_level_values(level = 0)
     lvl1 = [val.split(".")[1] if len(val.split("."))>1 else "nan" for val in lvl00]
     lvl2 = list(summary_df.columns.get_level_values(level = 1))
+
     lvl0[-1] = "nan"
-    lvl2[-1] = "Description"
+
+    if isGO:
+        lvl0[-2] = "nan"
+        lvl2[-2] = "Description"
+        lvl2[-1] = "ONTOLOGY"
+    else:
+        lvl2[-1] = "Description"
 
     tuples = list(zip(*[lvl0,lvl1,lvl2]))
     summary_df.columns = pd.MultiIndex.from_tuples(tuples, names=["Tool","Metric","Value"])
@@ -126,7 +137,8 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
 
     for library in libraries:
 
-        if library.endswith(".gmt"): library = library.split(".gmt")[0]
+        if library.endswith(".gmt"): 
+            library = library.split(".gmt")[0]
 
         tab_dict = dict()
         output_files_lib = [o for o in  output_files if library in o][0] # TO DO: careful
@@ -153,10 +165,14 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
                 else:
                     tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
 
-        
+        isGO = tab.index[0].startswith("GO:")
+
         ### Combine results
-        dfs = [d[["enrichmentScore","pvalue","qvalue","Description","Direction"]] for d in tab_dict.values()]
-        summary_df = combine_results(dfs)
+        cols = ["enrichmentScore","pvalue","qvalue","Description","Direction"]
+        if isGO:
+            cols += ["ONTOLOGY"]
+        dfs = [d[cols] for d in tab_dict.values()]
+        summary_df = combine_results(dfs, isGO)
         summary_df.to_csv(output_files_lib, index=True)
 
 if __name__ == "__main__":

@@ -142,7 +142,7 @@ def make_venn_plots(summary_dict,
                     lib_names: Dict,
                     metrics: List,
                     tools: List,
-                    pretty_print: Dict = None,
+                    pretty_print: Dict = {},
                     qval = 0.05):
 
     fig, ax = plt.subplots(len(lib_names.keys()), len(metrics), figsize=(len(metrics)*4,len(lib_names.keys())*4))
@@ -179,7 +179,7 @@ def make_upset_plots(summary_dict: Dict,
                     lib_names: Dict,
                     figpath: str,
                     project_name: str,
-                    pretty_print: Dict = None):
+                    pretty_print: Dict = {}):
 
     for lib in lib_names.keys():
 
@@ -219,7 +219,7 @@ def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title
 
     ax.set_yticks(my_range, ordered_df['Description'])
 
-    ax.set(title=f"Top {lib} terms {project_name}" if title == None else title)
+    ax.set(title=f"Top {lib} terms {project_name}" if title is None else title)
 
     ### COLOR BAR
     cmap = sns.cubehelix_palette(as_cmap=True)
@@ -275,20 +275,11 @@ def make_lollipop_plots(summary_dict: Dict,
     for lib in lib_names.keys():
 
         d = summary_dict[lib]["depth_df"]
+        
         if len(d) < 1:
             print(f"No terms found for {lib}")
             save_empty(lib)
             continue
-        if "Direction" not in d:
-            d["Direction"] = d.index.str.split("_").str[1].str.strip()
-        d.index = d.index.str.split("_").str[0]
-        d.rename({"Factors":"Configurations"}, axis=1, inplace=True)
-        d["Combined FDR"] = summary_dict[lib]["summary_df"].loc[d.index,("Combined","nan","Combined FDR")]
-        # TO DO: refactor this
-        d.sort_values(by=["Depth","Combined FDR"], ascending=[False,True], inplace=True)
-        outfile = f"{figpath}/../combined/syn.depth.{lib}.{project_name}.csv"
-        d = d[["Description","Depth","Direction","Combined FDR","Configurations"]]
-        d.to_csv(outfile)
         
         dd = d[(d["Depth"]>depth_cutoff) & (d["Combined FDR"]< qval)]
         if len(dd) < 1:
@@ -308,7 +299,7 @@ if __name__ == "__main__":
         config = yaml.safe_load(stream)
 
     libraries = config.get('libraries', [])
-    lib_names = {os.path.splitext(os.path.basename(l))[0]: l for l in libraries}
+    lib_names = {os.path.splitext(os.path.basename(lib))[0]: lib for lib in libraries}
 
     tools = config.get('tools', [])
     metrics = config.get('metrics', [])
