@@ -78,6 +78,24 @@ def format_depth_df(depth_df: pd.DataFrame,
         enrichr_df = read_enrichr(enrichr)
         d["Enrichr"] = d.index.isin(enrichr_df.index)
         cols.append("Enrichr")
+
+    # Check if genes from gmt file can be appended
+    gmt_file = lib_names[lib]
+    gmt_found = False
+    if gmt_file.endswith(".gmt") and os.path.isfile(gmt_file):
+        gmt_found = True
+    elif os.path.isfile(os.path.join("resources/Ontologies", gmt_file)):
+        gmt_file = os.path.join("resources/Ontologies", gmt_file)
+        gmt_found = True
+    if gmt_found:
+        print("Attempting to append genes from .gmt to depth df")
+        gmt = read_gmt(gmt_file)
+        if "Genes" in gmt:
+            gmt.set_index("ID", inplace=True)
+            d = d.merge(gmt["Genes"], left_index=True, right_index=True, how="left")
+            cols.append("Genes")
+        else:
+            print("No 'Genes' column found in gmt file...")
     
     cols.append("Configurations")
 
