@@ -20,6 +20,10 @@ make_figs = config["make_figs"]
 qval = config["qval"]
 savepath = f"results/{project_name}"
 
+fig_formats = config["fig_formats"]
+if not isinstance(fig_formats, list):
+    fig_formats = [fig_formats]
+
 # Gene conversion
 gene_converter = f"results/{project_name}/gene_converter.csv"
 
@@ -50,14 +54,18 @@ final_depth_outputs = expand(depth_output, library=lib_names.keys())
 
 if make_figs:
 
-    lollipop_plots = (f"results/{project_name}/figures/lollipop.{{library}}.{project_name}.pdf")
-    bar_plots = (f"results/{project_name}/figures/bars.{project_name}.pdf")
-    upset_plots = (f"results/{project_name}/figures/upset.{{library}}.{project_name}.pdf")
-    venn_metric = (f"results/{project_name}/figures/venn.metriccomp.{project_name}.pdf")
-    venn_method = (f"results/{project_name}/figures/venn.methodcomp.{project_name}.pdf")
-    all_lollipop = expand(lollipop_plots, library=lib_names.keys())
-    all_upset = expand(upset_plots, library=lib_names.keys())
-    all_figs = all_upset + all_lollipop + [bar_plots, venn_method, venn_metric]
+    lollipop_plots = (f"results/{project_name}/figures/lollipop.{{library}}.{project_name}.{{ext}}")
+    bar_plots = (f"results/{project_name}/figures/bars.{project_name}.{{ext}}")
+    upset_plots = (f"results/{project_name}/figures/upset.{{library}}.{project_name}.{{ext}}")
+    venn_metric = (f"results/{project_name}/figures/venn.metriccomp.{project_name}.{{ext}}")
+    venn_method = (f"results/{project_name}/figures/venn.methodcomp.{project_name}.{{ext}}")
+
+    all_bars = expand(bar_plots, ext=fig_formats)
+    all_vennmetric = expand(venn_metric, ext=fig_formats)
+    all_vennmethod = expand(venn_method, ext=fig_formats)
+    all_lollipop = expand(lollipop_plots, library=lib_names.keys(), ext=fig_formats)
+    all_upset = expand(upset_plots, library=lib_names.keys(), ext=fig_formats)
+    all_figs = all_upset + all_lollipop + all_bars + all_vennmetric + all_vennmethod
 else:
     all_figs = []
 
