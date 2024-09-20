@@ -197,7 +197,11 @@ def make_upset_plots(summary_dict: Dict,
         upset_ready.index.names = [" ".join([pretty_print[i] if pretty_print else i for i in u.split(".")]) for u in upset_ready.index.names] # pretty print
 
         pd.options.mode.copy_on_write = False
-        UpSet(upset_ready, subset_size="count", sort_by="cardinality", show_counts="{:,}").plot()
+        print(upset_ready.head())
+        try:
+            UpSet(upset_ready, subset_size="count", sort_by="cardinality", show_counts="{:,}").plot()
+        except AttributeError:
+            save_empty(outfile, lib)
         pd.options.mode.copy_on_write = True
         plt.savefig(outfile)
 
