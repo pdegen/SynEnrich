@@ -58,7 +58,7 @@ def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
     for f in factors_for_element:
         for i, ll in enumerate(factors_for_element[f]):
             factors_for_element[f][i] = ".".join(ll)
-        factors_for_element[f] = " | ".join(factors_for_element[f])
+        factors_for_element[f] = "; ".join(factors_for_element[f])
 
     depth_df = pd.DataFrame(intersection_depth.values(), index=intersection_depth.keys(), columns=["Depth"])
     depth_df.sort_values(by="Depth", ascending=False, inplace=True)

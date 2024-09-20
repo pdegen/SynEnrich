@@ -79,6 +79,8 @@ def format_depth_df(depth_df: pd.DataFrame,
         d["Enrichr"] = d.index.isin(enrichr_df.index)
         cols.append("Enrichr")
 
+    cols.append("Configurations")
+
     # Check if genes from gmt file can be appended
     gmt_file = lib_names[lib]
     gmt_found = False
@@ -93,11 +95,10 @@ def format_depth_df(depth_df: pd.DataFrame,
         if "Genes" in gmt:
             gmt.set_index("ID", inplace=True)
             d = d.merge(gmt["Genes"], left_index=True, right_index=True, how="left")
+            d["Genes"] = d["Genes"].apply(lambda s: "; ".join(g for g in s))
             cols.append("Genes")
         else:
             print("No 'Genes' column found in gmt file...")
-    
-    cols.append("Configurations")
 
     d = d[cols]
     d.to_csv(outfile)

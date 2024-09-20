@@ -192,7 +192,7 @@ def make_upset_plots(summary_dict: Dict,
             save_empty(outfile, lib)
             continue
         memberships = depth_df["Configurations"]
-        memberships_list = [categories.split(" | ") for categories in memberships.values]
+        memberships_list = [categories.split("; ") for categories in memberships.values]
         upset_ready = from_memberships(memberships_list)
         upset_ready.index.names = [" ".join([pretty_print[i] if pretty_print else i for i in u.split(".")]) for u in upset_ready.index.names] # pretty print
 
