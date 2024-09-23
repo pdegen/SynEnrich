@@ -47,7 +47,7 @@ def format_depth_df(depth_df: pd.DataFrame,
     d = depth_df
     if len(d) < 1:
         print(f"No terms found for {lib}")
-        pd.DataFrame(f"No terms found for {lib}").to_csv(outfile)
+        pd.DataFrame([f"No terms found for {lib}"]).to_csv(outfile)
         return d
     
     # Append GO sub-ontology

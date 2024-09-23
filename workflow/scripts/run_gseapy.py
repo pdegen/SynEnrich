@@ -103,13 +103,17 @@ def run_gseapy_multi(
     res_merged.to_csv(outfile)
 
 
-def run_gseapy(input: Union[pd.DataFrame, pd.Series], ontology: str, outdir: str, **kwargs):
+def run_gseapy(input: Union[pd.DataFrame, pd.Series], 
+               ontology: str, 
+               outdir: str, 
+               **kwargs):
 
     res = gseapy.prerank(rnk=input, 
                           gene_sets=ontology, 
                           outdir=None, 
                           min_size=10,
                           max_size=500,
+                          permutation_num=1000,
                           **kwargs)
     res.res2d["Ontology"] = ontology
     return res
