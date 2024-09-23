@@ -147,34 +147,47 @@ def make_venn_plots(summary_dict,
                     qval = 0.05,
                     ext: str = "pdf"):
 
-    fig, ax = plt.subplots(len(lib_names.keys()), len(metrics), figsize=(len(metrics)*4,len(lib_names.keys())*4))
-    if len(lib_names.keys()) == 1: ax = np.expand_dims(ax, axis=1).T
-    if len(metrics) == 1: ax = np.array([ax]).T
 
-    for i, lib in enumerate(lib_names.keys()):
-        summary_df = summary_dict[lib]["summary_df"]
-        sig_dict = get_sig_dict(summary_df, tools, metrics, qval=qval)
-        for j, metric in enumerate(metrics):
-            plot_venn(sig_dict, tools, metric, ax[i][j], pretty_print)
-            ax[i][j].set_title(f"{pretty_print[metric] if pretty_print else metric} ({lib})", fontweight='bold')
+    if len(tools) == 1: 
+        save_empty(f"{figpath}/venn.methodcomp.{project_name}.{ext}", "")
+    else:
 
-    fig.tight_layout()
-    fig.savefig(f"{figpath}/venn.methodcomp.{project_name}.{ext}")
+        fig, ax = plt.subplots(len(lib_names), len(metrics), figsize=(len(metrics)*4,len(lib_names.keys())*4))
 
+        if len(lib_names) == 1:
+            ax = np.expand_dims(ax, axis=0)  # Make it a 2D array with one row
+        if len(metrics) == 1:
+            ax = np.expand_dims(ax, axis=1)
 
-    fig, ax = plt.subplots(len(lib_names.keys()), 3, figsize=(12,len(lib_names.keys())*4))
-    if len(lib_names.keys()) == 1: ax = np.expand_dims(ax, axis=1).T
-    if len(metrics) == 1: ax = np.array([ax]).T
+        for i, lib in enumerate(lib_names.keys()):
+            summary_df = summary_dict[lib]["summary_df"]
+            sig_dict = get_sig_dict(summary_df, tools, metrics, qval=qval)
+            for j, metric in enumerate(metrics):
+                print(tools, metric)
+                plot_venn(sig_dict, tools, metric, ax[i][j], pretty_print)
+                ax[i][j].set_title(f"{pretty_print[metric] if pretty_print else metric} ({lib})", fontweight='bold')
 
-    for i, lib in enumerate(lib_names.keys()):
-        summary_df = summary_dict[lib]["summary_df"]
-        sig_dict = get_sig_dict(summary_df, tools, metrics, qval=0.05)
-        for j, tool in enumerate(tools):
-            plot_venn(sig_dict, tool, metrics, ax[i][j], pretty_print)
-            ax[i][j].set_title(f"{pretty_print[tool] if pretty_print else tool} ({lib})", fontweight='bold')
+        fig.tight_layout()
+        fig.savefig(f"{figpath}/venn.methodcomp.{project_name}.{ext}")
 
-    fig.tight_layout()
-    fig.savefig(f"{figpath}/venn.metriccomp.{project_name}.{ext}")
+    if len(metrics) == 1: 
+        save_empty(f"{figpath}/venn.metriccomp.{project_name}.{ext}", "")
+    else:
+
+        fig, ax = plt.subplots(len(lib_names), len(tools), figsize=(len(tools)*4,len(lib_names.keys())*4))
+
+        if len(lib_names) == 1: 
+            ax = np.expand_dims(ax, axis=0).T
+
+        for i, lib in enumerate(lib_names.keys()):
+            summary_df = summary_dict[lib]["summary_df"]
+            sig_dict = get_sig_dict(summary_df, tools, metrics, qval=0.05)
+            for j, tool in enumerate(tools):
+                plot_venn(sig_dict, tool, metrics, ax[i][j], pretty_print)
+                ax[i][j].set_title(f"{pretty_print[tool] if pretty_print else tool} ({lib})", fontweight='bold')
+
+        fig.tight_layout()
+        fig.savefig(f"{figpath}/venn.metriccomp.{project_name}.{ext}")
 
 
 def make_upset_plots(summary_dict: Dict, 
@@ -305,9 +318,12 @@ def make_lollipop_plots(summary_dict: Dict,
                 lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, suffix="enrichr")
 
 # Save dummy figs to prevent SnakeMake jobs from failing when no terms are found
-def save_empty(outfile, lib):
+def save_empty(outfile, lib=""):
     fig, ax = plt.subplots(1,1)
-    ax.set_title(f"No terms found for {lib}")
+    if lib != "":
+        ax.set_title(f"No terms found for {lib}")
+    else:
+        ax.set_title(f"No plot generated")
     fig.savefig(outfile)
 
 if __name__ == "__main__":
