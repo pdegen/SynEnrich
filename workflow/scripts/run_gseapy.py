@@ -105,15 +105,18 @@ def run_gseapy_multi(
 
 def run_gseapy(input: Union[pd.DataFrame, pd.Series], 
                ontology: str, 
-               outdir: str, 
+               outdir: str,
+               min_size: int = 10,
+               max_size: int = 500,
+               permutation_num: int = 1000,
                **kwargs):
 
     res = gseapy.prerank(rnk=input, 
                           gene_sets=ontology, 
                           outdir=None, 
-                          min_size=10,
-                          max_size=500,
-                          permutation_num=1000,
+                          min_size=min_size,
+                          max_size=max_size,
+                          permutation_num=permutation_num,
                           **kwargs)
     res.res2d["Ontology"] = ontology
     return res

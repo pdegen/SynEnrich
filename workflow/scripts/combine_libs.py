@@ -13,7 +13,8 @@ def create_summary_dict(savepath: str,
          metrics: List[str],
          project_name: str,
          qval: float = 0.05,
-         save = False,
+         save: bool = False,
+         go_sem_sim: bool = False
          ) -> Dict:
 
     libs = lib_names.keys()
@@ -24,7 +25,7 @@ def create_summary_dict(savepath: str,
         summary_dict[lib]["summary_df"] = summary_df
         sig_dict = get_sig_dict(summary_df, tools, metrics, qval=qval, verbose=True)
         depth_df = create_intersection_depth_df(sig_dict)
-        depth_df = format_depth_df(depth_df, project_name, savepath, lib, lib_names, summary_df)
+        depth_df = format_depth_df(depth_df, project_name, savepath, lib, lib_names, summary_df, go_sem_sim)
         summary_dict[lib]["depth_df"] = depth_df
 
     # Store results in dictionary for meta-analysis
@@ -40,7 +41,8 @@ def format_depth_df(depth_df: pd.DataFrame,
                     savepath: str,
                     lib: str,
                     lib_names: Dict[str, str],
-                    summary_df: pd.DataFrame
+                    summary_df: pd.DataFrame,
+                    go_sem_sim: bool = False,
                     ) -> pd.DataFrame:
     
     outfile = os.path.join(savepath, f"syn.depth.{lib}.{project_name}.csv")
@@ -50,8 +52,10 @@ def format_depth_df(depth_df: pd.DataFrame,
         pd.DataFrame([f"No terms found for {lib}"]).to_csv(outfile)
         return d
     
+    isGO = d.index[0].startswith("GO:")
+
     # Append GO sub-ontology
-    if d.index[0].startswith("GO:"):
+    if isGO:
         d["ID"] = d.index.str.split("_").str[0]
         ont = pd.DataFrame(summary_df[("nan","nan","ONTOLOGY")].values, index=summary_df.index, columns=["ONTOLOGY"])
         d = d.merge(ont["ONTOLOGY"], left_on="ID", right_index=True, how="left")
@@ -78,6 +82,14 @@ def format_depth_df(depth_df: pd.DataFrame,
         enrichr_df = read_enrichr(enrichr)
         d["Enrichr"] = d.index.isin(enrichr_df.index)
         cols.append("Enrichr")
+
+    # Needs different conda env!
+    # Check if we should do GO Semantic Similarity Analysis
+    # if go_sem_sim and isGO:
+    #     from clustering import append_GO_clusters_to_depth_df
+    #     d = append_GO_clusters_to_depth_df(sim_matrix_cache_folder, d, figpath, lib, project_name, max_thresh=go_sem_sim_max_distance)
+    #     cols.append("GO_Cluster")
+    #     cols.append("Top_GO_Cluster")
 
     cols.append("Configurations")
 
@@ -119,7 +131,23 @@ if __name__ == "__main__":
     save = config.get('save_summary_dict')
     savepath = os.path.join("results",project_name,"combined")
 
-    create_summary_dict(savepath, lib_names, tools, metrics, project_name, qval, save)
+    # GoSemSim
+    go_sem_sim = config.get('go_sem_sim')
+    if go_sem_sim:
+        figpath = os.path.join("results",project_name,"figures")
+        organismKEGG = config.get("organismKEGG")
+        go_sem_sim_max_distance = config.get("go_sem_sim_max_distance")
+        sim_matrix_cache_folder = os.path.join("results",project_name,".cache")
+
+        match(organismKEGG):
+            case "mmu": 
+                org = "Org.Mm.eg.db"
+            case "hsa": 
+                org = "Org.Hs.eg.db"
+            case _: 
+                raise Exception(f"Organism not supported: {organismKEGG}")
+
+    create_summary_dict(savepath, lib_names, tools, metrics, project_name, qval, save, go_sem_sim=go_sem_sim)
 
 
 
