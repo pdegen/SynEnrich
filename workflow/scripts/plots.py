@@ -219,28 +219,42 @@ def make_upset_plots(summary_dict: Dict,
         plt.savefig(outfile)
 
 
-def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title=None, suffix=""):
+def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title=None, suffix="", x_val = "SignedDepth"):
 
     outfile = f"{figpath}/lollipop{'.' + suffix if suffix != '' else ''}.{lib}.{project_name}.{ext}"
     if len(df) < 1:
         save_empty(outfile, lib)
         return
-
-    df["SignedDepth"] = df["Depth"] * df["Direction"].apply(lambda x: 1 if x == "Up" else 0 if x == "Both" else -1)
+    
     df["logFDR"] = -np.log10(df["Combined FDR"])
-    ordered_df = df.sort_values(by="SignedDepth")
+    
+    if x_val == "SignedDepth":
+        df["SignedDepth"] = df["Depth"] * df["Direction"].apply(lambda x: 1 if x == "Up" else 0 if x == "Both" else -1)
+        hue = "logFDR"
+    elif x_val == "NegSignedlogFDR":
+        df["NegSignedlogFDR"] = df["logFDR"] * df["Direction"].apply(lambda x: 1 if x == "Up" else 0 if x == "Both" else -1)
+        max_depth = df["NegSignedlogFDR"].abs().max()
+        if "Genes" in df:
+            df["n_genes"] = df["Genes"].str.split(";").apply(lambda x: len(x))
+            hue = "n_genes"
+        else:
+            hue = "Depth"
+    else:
+        raise Exception(f"Unknown x_val: {x_val}")
+    
+    ordered_df = df.sort_values(by=x_val)
 
     my_range=range(1, len(df.index)+1)
     max_label_length = max(len(label) for label in ordered_df["Description"])
     
     with sns.axes_style("ticks"):
         fig_width = 4 + max_label_length * 0.08
-        fig_height = max(1.8,len(df)//3)
+        fig_height = max(3.6,len(df)//3)
         fig, ax = plt.subplots(1,1,figsize=(fig_width,fig_height))
 
 
-    ax.hlines(y=my_range, xmin=0, xmax=ordered_df["SignedDepth"], zorder=98, color="grey")
-    sns.scatterplot(data=ordered_df, x="SignedDepth", y=range(1,1+len(ordered_df)), hue="logFDR", ax=ax, zorder=99, s=100)
+    ax.hlines(y=my_range, xmin=0, xmax=ordered_df[x_val], zorder=98, color="grey")
+    sns.scatterplot(data=ordered_df, x=x_val, y=range(1,1+len(ordered_df)), hue=hue, ax=ax, zorder=99, s=100)
 
     ax.set_yticks(my_range, ordered_df['Description'])
 
@@ -248,7 +262,7 @@ def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title
 
     ### COLOR BAR
     cmap = sns.cubehelix_palette(as_cmap=True)
-    norm = plt.Normalize(ordered_df['logFDR'].min(), ordered_df['logFDR'].max())
+    norm = plt.Normalize(ordered_df[hue].min(), ordered_df[hue].max())
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
 
@@ -259,7 +273,7 @@ def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title
     ax.get_legend().remove()
     fig.colorbar(sm, cax=cax)
     #clb.ax.set_title('This is a title')
-    fig.axes[1].set(title='-logFDR', xlabel='', ylabel='')
+    fig.axes[1].set(title=hue, xlabel='', ylabel='')
 
 
     # some extra spacing top and bottom
@@ -271,8 +285,8 @@ def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title
 
     if max_depth > 0:
         low, high = ax.get_xlim()
-        if ordered_df["SignedDepth"].max() > 0: high = max_depth + 0.5
-        if ordered_df["SignedDepth"].min() < 0: low = -max_depth-0.5
+        if ordered_df[x_val].max() > 0: high = max_depth + 0.5
+        if ordered_df[x_val].min() < 0: low = -max_depth-0.5
         ax.set_xlim(low,high)
         if low == -max_depth-0.5 and high == max_depth + 0.5:
             ax.axvline(0, ls="--",color="grey")
@@ -288,6 +302,7 @@ def make_lollipop_plots(summary_dict: Dict,
                         qval: float = 0.05,
                         depth_cutoff: int = 1,
                         max_depth: int = 0,
+                        x_val = "SignedDepth",
                         ext: str = "pdf"):
 
     sns.set_theme(font_scale=1)
@@ -307,15 +322,22 @@ def make_lollipop_plots(summary_dict: Dict,
             save_empty(f"{figpath}/lollipop.{lib}.{project_name}.{ext}", lib)
             continue
 
-        title = f"Top {lib}\n{project_name}"
-        lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title)
+        title = f"Top {lib}\n{project_name}\nDepth>{depth_cutoff-1}"
+        lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, x_val=x_val)
 
         # subset plots to enrichr terms
         if "Enrichr" in dd:
-            title = f"Top {lib}\nEnrichr filtered\n{project_name}"
+            title = f"Top {lib}\nEnrichr filtered\n{project_name}\nDepth>{depth_cutoff-1}"
             dd  = dd[dd["Enrichr"]]
             if len(dd) > 1:
-                lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, suffix="enrichr")
+                lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, suffix="enrichr", x_val=x_val)
+        
+        # subset plots to goesmsim fitlered terms
+        if "Top_GO_Cluster" in dd:
+            title = f"Top {lib}\nGOSemSim filtered\n{project_name}\nDepth>{depth_cutoff-1}"
+            dd  = dd[dd["Top_GO_Cluster"]]
+            if len(dd) > 1:
+                lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, suffix="gosemsim",x_val=x_val)
 
 # Save dummy figs to prevent SnakeMake jobs from failing when no terms are found
 def save_empty(outfile, lib=""):
@@ -342,6 +364,8 @@ if __name__ == "__main__":
     project_name = config.get('project_name')
     qval = config.get('qval')
     max_depth = len(metrics) * len(tools)
+    depth_cutoff = config.get("depth_cutoff_lollipop")
+    x_val = config.get("x_val_lollipop")
     figpath = os.path.join("results",project_name,"figures")
 
     fig_formats = config.get('fig_formats', [])
@@ -357,6 +381,7 @@ if __name__ == "__main__":
         make_bar_plots(summary_dict, figpath, project_name, lib_names, pretty_print, qval = qval, max_depth = max_depth, ext=ext)
         make_venn_plots(summary_dict, figpath, project_name, lib_names, metrics, tools, pretty_print, qval = qval, ext=ext)
         make_upset_plots(summary_dict, lib_names, figpath, project_name, pretty_print, ext=ext)
-        make_lollipop_plots(summary_dict, lib_names, figpath, project_name, top_terms = 30, qval = qval, depth_cutoff = 1, max_depth = max_depth, ext=ext)
+        make_lollipop_plots(summary_dict, lib_names, figpath, project_name, top_terms = 30, qval = qval, depth_cutoff = depth_cutoff, 
+                            max_depth = max_depth, ext=ext, x_val=x_val)
 
     

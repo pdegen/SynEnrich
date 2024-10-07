@@ -16,6 +16,7 @@ dependencies:
   - seaborn=0.13.2
   - statsmodels=0.14.2
   - scipy=1.14.0
+  - scikit-learn=1.5.2
   - matplotlib-venn=1.1.1
   - upsetplot=0.9.0
   - snakemake=8.18.1

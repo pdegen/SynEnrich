@@ -18,11 +18,14 @@ tools = config["tools"]
 save_summary_dict = config["save_summary_dict"]
 make_figs = config["make_figs"]
 qval = config["qval"]
-savepath = f"results/{project_name}"
+savepath = os.path.join("results", project_name)
+cachepath = os.path.join(savepath, ".cache")
 
 fig_formats = config["fig_formats"]
 if not isinstance(fig_formats, list):
     fig_formats = [fig_formats]
+
+go_sem_sim = config["go_sem_sim"]
 
 # Gene conversion
 gene_converter = f"results/{project_name}/gene_converter.csv"
@@ -53,7 +56,6 @@ final_configurations_outputs = expand(combined_configurations_output, library=li
 final_depth_outputs = expand(depth_output, library=lib_names.keys())
 
 if make_figs:
-
     lollipop_plots = (f"results/{project_name}/figures/lollipop.{{library}}.{project_name}.{{ext}}")
     bar_plots = (f"results/{project_name}/figures/bars.{project_name}.{{ext}}")
     upset_plots = (f"results/{project_name}/figures/upset.{{library}}.{project_name}.{{ext}}")
@@ -69,6 +71,20 @@ if make_figs:
 else:
     all_figs = []
 
+if go_sem_sim:
+    depth_output_GO = (
+        f"results/{project_name}/combined/syn.depth.{{library}}.{project_name}.csv"
+    )
+    go_libraries = [lib for lib in lib_names.keys() if lib.startswith("GO")]
+    depth_output_GO_files = expand(depth_output_GO, library=go_libraries)
+    subontologies = ["BP","CC","MF"]
+    semsim_out = expand(f"{cachepath}/sim_matrix_{{subontology}}.csv", subontology=subontologies)
+    go_heatmaps = (os.path.join("results",project_name,"figures",f"go.heat.{{subont}}.{{lib}}.{project_name}.png"))
+    all_go_heatmaps = expand(go_heatmaps, subont=subontologies, lib=go_libraries)
+else:
+    semsim_out = []
+    all_go_heatmaps = []
+
 # Define the final target files based on the method selected
 rule all:
     input:
@@ -77,6 +93,8 @@ rule all:
         all_intermediate_outputs,
         final_depth_outputs,
         all_figs,
+        semsim_out,
+        all_go_heatmaps,
 
 
 # Rule for creating gene name converter table
@@ -93,7 +111,6 @@ rule run_geneconverter:
         """
 
 
-# Rule for running ClusterProfiler
 rule run_clusterprofiler:
     input:
         infile=input_file,
@@ -115,7 +132,6 @@ rule run_clusterprofiler:
         """
 
 
-# Rule for running gseapy
 rule run_gseapy:
     input:
         infile=input_file,
@@ -153,7 +169,6 @@ rule combine_results_from_different_configurations:
         """
 
 
-# Rule to combine results from different libraries
 rule combine_results_from_different_libraries:
     input:
         final_configurations_outputs,
@@ -167,8 +182,35 @@ rule combine_results_from_different_libraries:
         python workflow/scripts/combine_libs.py 
         """
 
+rule get_go_sem_sim_matrices:
+    input: 
+        depth_files=depth_output_GO_files,
+    output:
+        outfile = semsim_out,
+    conda:
+        "envs/environment.clusterprofiler.yaml"
+    shell:
+        """
+        Rscript workflow/scripts/gosemsim.R {input.depth_files} {organismKEGG} {cachepath} {qval}
+        """
+
+rule append_GO_clusters_to_depth_df:
+    input:
+        semsim_out,
+    output:
+        all_go_heatmaps,
+    conda:
+        "envs/environment.yaml"
+    shell:
+        """
+        python3 workflow/scripts/clustering.py # note: this updates depth_df
+        """
+
+# TO DO: make rule finalize_combined_outputs that saves depth_df, summary_dict after GOSemSim; for now use snakemake --touch as workaround
+
 rule make_plots:
     input:
+        all_go_heatmaps,    
         summary_dict_output,
     output:
         all_figs,
