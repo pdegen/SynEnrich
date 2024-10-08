@@ -120,8 +120,7 @@ def find_optimal_threshold(heatmap_data, steps = 50):
 def get_clusters_from_sim_matrix(sim_matrix_path, figpath="", max_thresh=0):
 
     sim_matrix = pd.read_csv(sim_matrix_path, index_col=0)
-
-    if len(sim_matrix) < 1:
+    if len(sim_matrix) < 2:
         print("No terms found for GO Clusters, saving empty:", figpath)
         save_empty(figpath)
         return
@@ -158,7 +157,7 @@ def append_GO_clusters_to_depth_df(sim_matrix_cache_folder, depth_df, figpath, l
         #d['Top_GO_Cluster'] = d.groupby('GO_Cluster')['Combined FDR'].transform(lambda x: x == x.min())
         # For cases where there are multiple True values (ties), keep only the first occurrence # doesn't work?
         #d['Top_GO_Cluster'] = d.groupby('GO_Cluster').apply(lambda x: x.assign(Top_GO_Cluster=(x['Top_GO_Cluster'].cumsum() == 1))).reset_index(drop=True)['Top_GO_Cluster']
-
+        
         lastcols = ["Configurations","Genes"]
         cols = [col for col in d.columns if col not in lastcols] + lastcols
         d = d[cols]
@@ -193,6 +192,12 @@ if __name__ == "__main__":
             continue
         depth_df_file = os.path.join(savepath, f"syn.depth.{lib}.{project_name}.csv")
         depth_df = pd.read_csv(depth_df_file, index_col=0)
+
+        if len(depth_df) < 2:
+            for subont in ["BP","CC","MF"]:
+                save_empty(os.path.join(figpath,f"go.heat.{subont}.{lib}.{project_name}.png"))
+            continue
+
         depth_df = append_GO_clusters_to_depth_df(sim_matrix_cache_folder, depth_df, figpath, lib, project_name, max_thresh=go_sem_sim_max_distance)
         depth_df.to_csv(depth_df_file)
 
