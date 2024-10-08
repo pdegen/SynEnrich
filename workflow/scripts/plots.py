@@ -322,19 +322,19 @@ def make_lollipop_plots(summary_dict: Dict,
             save_empty(f"{figpath}/lollipop.{lib}.{project_name}.{ext}", lib)
             continue
 
-        title = f"Top {lib}\n{project_name}\nDepth>{depth_cutoff-1}"
+        title = f"Top {lib}\n{project_name}\nDepth>{depth_cutoff}"
         lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, x_val=x_val)
 
         # subset plots to enrichr terms
         if "Enrichr" in dd:
-            title = f"Top {lib}\nEnrichr filtered\n{project_name}\nDepth>{depth_cutoff-1}"
+            title = f"Top {lib}\nEnrichr filtered\n{project_name}\nDepth>{depth_cutoff}"
             dd  = dd[dd["Enrichr"]]
             if len(dd) > 1:
                 lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, suffix="enrichr", x_val=x_val)
         
         # subset plots to goesmsim fitlered terms
         if "Top_GO_Cluster" in dd:
-            title = f"Top {lib}\nGOSemSim filtered\n{project_name}\nDepth>{depth_cutoff-1}"
+            title = f"Top {lib}\nGOSemSim filtered\n{project_name}\nDepth>{depth_cutoff}"
             dd  = dd[dd["Top_GO_Cluster"]]
             if len(dd) > 1:
                 lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, suffix="gosemsim",x_val=x_val)
