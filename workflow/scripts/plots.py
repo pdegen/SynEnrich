@@ -219,7 +219,16 @@ def make_upset_plots(summary_dict: Dict,
         plt.savefig(outfile)
 
 
-def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title=None, suffix="", x_val = "SignedDepth"):
+def lollipop_plots(df, 
+                   lib, 
+                   figpath, 
+                   project_name, 
+                   max_depth=0, 
+                   ext="pdf", 
+                   title=None, 
+                   suffix="", 
+                   x_val = "SignedDepth",
+                   hue_subontology = False):
 
     outfile = f"{figpath}/lollipop{'.' + suffix if suffix != '' else ''}.{lib}.{project_name}.{ext}"
     if len(df) < 1:
@@ -242,6 +251,12 @@ def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title
     else:
         raise Exception(f"Unknown x_val: {x_val}")
     
+    if "ONTOLOGY" not in df:
+        hue_subontology = False
+    
+    if hue_subontology:
+        hue = "ONTOLOGY"
+    
     ordered_df = df.sort_values(by=x_val)
 
     my_range=range(1, len(df.index)+1)
@@ -252,28 +267,46 @@ def lollipop_plots(df, lib, figpath, project_name, max_depth=0, ext="pdf", title
         fig_height = max(3.6,len(df)//3)
         fig, ax = plt.subplots(1,1,figsize=(fig_width,fig_height))
 
+    npg = npg = npg_palette()
+    # hue subontology
+    palette = {"BP": npg[0],
+            "CC": npg[1],
+            "MF": npg[2]}
+
+    markers = {"BP": "o",
+            "CC": "D",
+            "MF": "s"}
+
 
     ax.hlines(y=my_range, xmin=0, xmax=ordered_df[x_val], zorder=98, color="grey")
-    sns.scatterplot(data=ordered_df, x=x_val, y=range(1,1+len(ordered_df)), hue=hue, ax=ax, zorder=99, s=100)
+    sns.scatterplot(data=ordered_df, x=x_val, y=range(1,1+len(ordered_df)), 
+                    hue=hue, ax=ax, zorder=99, s=100, 
+                    palette=palette if hue_subontology else None, 
+                    style=hue if hue_subontology else None,
+                    markers=markers if hue_subontology else None)
 
     ax.set_yticks(my_range, ordered_df['Description'])
 
     ax.set(title=f"Top {lib} terms {project_name}" if title is None else title)
 
-    ### COLOR BAR
-    cmap = sns.cubehelix_palette(as_cmap=True)
-    norm = plt.Normalize(ordered_df[hue].min(), ordered_df[hue].max())
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
+    if hue_subontology:
+        ax.legend(facecolor='white', bbox_to_anchor=(1.01, 1))
 
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
+    else:
+        ### COLOR BAR
+        cmap = sns.cubehelix_palette(as_cmap=True)
+        norm = plt.Normalize(ordered_df[hue].min(), ordered_df[hue].max())
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
 
-    # Remove the legend and add a colorbar
-    ax.get_legend().remove()
-    fig.colorbar(sm, cax=cax)
-    #clb.ax.set_title('This is a title')
-    fig.axes[1].set(title=hue, xlabel='', ylabel='')
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+
+        # Remove the legend and add a colorbar
+        ax.get_legend().remove()
+        fig.colorbar(sm, cax=cax)
+        #clb.ax.set_title('This is a title')
+        fig.axes[1].set(title=hue, xlabel='', ylabel='')
 
 
     # some extra spacing top and bottom
@@ -301,9 +334,9 @@ def make_lollipop_plots(summary_dict: Dict,
                         top_terms: int = 30,
                         qval: float = 0.05,
                         depth_cutoff: int = 1,
-                        max_depth: int = 0,
-                        x_val = "SignedDepth",
-                        ext: str = "pdf"):
+                        ext: str = "pdf",
+                        split_by_subontology = False,
+                        **kwargs):
 
     sns.set_theme(font_scale=1)
 
@@ -311,33 +344,47 @@ def make_lollipop_plots(summary_dict: Dict,
 
         d = summary_dict[lib]["depth_df"]
 
-        if len(d) < 1:
-            print(f"No terms found for {lib}")
-            save_empty(f"{figpath}/lollipop.{lib}.{project_name}.{ext}", lib)
-            continue
-        
-        dd = d[(d["Depth"]>depth_cutoff) & (d["Combined FDR"]< qval)]
-        if len(dd) < 1:
-            print(f"No terms found for {lib}")
-            save_empty(f"{figpath}/lollipop.{lib}.{project_name}.{ext}", lib)
-            continue
+        if "ONTOLOGY" not in d:
+            split_by_subontology = False
 
-        title = f"Top {lib}\n{project_name}\nDepth>{depth_cutoff}"
-        lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, x_val=x_val)
+        if split_by_subontology:
+            subonts = ["BP","CC","MF"]
+        else:
+            subonts = [""]
 
-        # subset plots to enrichr terms
-        if "Enrichr" in dd:
-            title = f"Top {lib}\nEnrichr filtered\n{project_name}\nDepth>{depth_cutoff}"
-            dd  = dd[dd["Enrichr"]]
-            if len(dd) > 1:
-                lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, suffix="enrichr", x_val=x_val)
-        
-        # subset plots to goesmsim fitlered terms
-        if "Top_GO_Cluster" in dd:
-            title = f"Top {lib}\nGOSemSim filtered\n{project_name}\nDepth>{depth_cutoff}"
-            dd  = dd[dd["Top_GO_Cluster"]]
-            if len(dd) > 1:
-                lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, max_depth = max_depth, title=title, suffix="gosemsim",x_val=x_val)
+        for ont in subonts:
+
+            suffix = f"{ont}." if ont != "" else ""
+
+            do = d[d["ONTOLOGY"]==ont] if split_by_subontology else d
+
+            if len(do) < 1:
+                print(f"No terms found for {lib}{suffix}")
+                save_empty(f"{figpath}/lollipop.{suffix}{lib}.{project_name}.{ext}", lib)
+                continue
+            
+            dd = do[(do["Depth"]>depth_cutoff) & (do["Combined FDR"]< qval)]
+            if len(dd) < 1:
+                print(f"No terms found for {lib}{suffix}")
+                save_empty(f"{figpath}/lollipop.{suffix}{lib}.{project_name}.{ext}", lib)
+                continue
+
+            title = f"Top {lib}\n{project_name}\nDepth>{depth_cutoff}"
+            lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, title=title, **kwargs)
+
+            # subset plots to enrichr terms
+            if "Enrichr" in dd:
+                title = f"Top {lib}\nEnrichr filtered\n{project_name}\nDepth>{depth_cutoff}"
+                dd  = dd[dd["Enrichr"]]
+                if len(dd) > 1:
+                    lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, title=title, suffix=f"{suffix}enrichr", **kwargs)
+            
+            # subset plots to goesmsim fitlered terms
+            if "Top_GO_Cluster" in dd:
+                title = f"Top {lib}\nGOSemSim filtered\n{project_name}\nDepth>{depth_cutoff}"
+                dd  = dd[dd["Top_GO_Cluster"]]
+                if len(dd) > 1:
+                    lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, title=title, suffix=f"{suffix}gosemsim", **kwargs)
 
 # Save dummy figs to prevent SnakeMake jobs from failing when no terms are found
 def save_empty(outfile, lib=""):
