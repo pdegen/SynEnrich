@@ -1,0 +1,10 @@
+# environment.goatoolsyaml
+
+name: goatools
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - goatools
+  - pandas

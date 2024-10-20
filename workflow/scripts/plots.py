@@ -290,7 +290,7 @@ def lollipop_plots(df,
     ax.set(title=f"Top {lib} terms {project_name}" if title is None else title)
 
     if hue_subontology:
-        ax.legend(facecolor='white', bbox_to_anchor=(1.01, 1))
+        ax.legend(facecolor='white', bbox_to_anchor=(1.01, 1), loc="upper left")
 
     else:
         ### COLOR BAR
@@ -348,7 +348,7 @@ def make_lollipop_plots(summary_dict: Dict,
             split_by_subontology = False
 
         if split_by_subontology:
-            subonts = ["BP","CC","MF"]
+            subonts = ["BP","CC","MF", "ALL"]
         else:
             subonts = [""]
 
@@ -356,7 +356,7 @@ def make_lollipop_plots(summary_dict: Dict,
 
             suffix = f"{ont}." if ont != "" else ""
 
-            do = d[d["ONTOLOGY"]==ont] if split_by_subontology else d
+            do = d[d["ONTOLOGY"]==ont] if ont not in ["","ALL"] else d
 
             if len(do) < 1:
                 print(f"No terms found for {lib}{suffix}")
@@ -370,7 +370,7 @@ def make_lollipop_plots(summary_dict: Dict,
                 continue
 
             title = f"Top {lib}\n{project_name}\nDepth>{depth_cutoff}"
-            lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, title=title, **kwargs)
+            lollipop_plots(dd.iloc[:top_terms], lib, figpath, project_name, ext=ext, title=title, suffix=f"{suffix}", **kwargs)
 
             # subset plots to enrichr terms
             if "Enrichr" in dd:
