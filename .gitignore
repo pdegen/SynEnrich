@@ -172,5 +172,5 @@ config
 resources/*
 !resources/testdata/
 
-workflow/notebooks/test*
+workflow/notebooks/private*
 *go-basic.obo
