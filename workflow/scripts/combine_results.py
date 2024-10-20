@@ -27,7 +27,7 @@ def stouffer_combined_p_value(p_values: Union[List[float], np.ndarray],
 
 def mean_pval(pvals):
     pv = pvals.copy() # pvals is read-only
-    pv[pv == 0] = 1e-30  # Impute zeros with a small number
+    pv[pv == 0] = 1e-30  # Impute zeros with a small number; TO DO: change to 1/n_perms or something
     pv = pv.astype(float) # else np.log10 might complain
     return 10**np.nanmean(np.log10(pv))
 

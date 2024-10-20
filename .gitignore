@@ -172,4 +172,5 @@ config
 resources/*
 !resources/testdata/
 
-workflow/notebooks/pdegen*
+workflow/notebooks/test*
+*go-basic.obo
