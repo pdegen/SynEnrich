@@ -10,6 +10,30 @@ except ModuleNotFoundError:
     print("mygene not found")
     pass
 
+import subprocess
+
+def run_snakemake(cores=1, touch=False, dry=False) -> bool:
+    # Call Snakemake from the notebook
+    command = [
+        "snakemake",
+        "--cores", str(cores),          # Number of cores to use
+        "--use-conda"                   # Use conda if required
+    ] if not touch else ["snakemake", "--touch"]
+
+    if not touch and dry: 
+        command += ["-n"]
+    
+    # Run the Snakemake workflow and wait for it to complete
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    print(command)
+    # Print the output for debugging
+    print(result.stdout)
+    print(result.stderr)
+
+    success = "At least one job did not complete successfully." not in result.stderr
+    return success
+
 def pickler(contents, filepath):
     """Store arbitrary Python object in filepath"""
     with open(filepath, "wb") as fp:

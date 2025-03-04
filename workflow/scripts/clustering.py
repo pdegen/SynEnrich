@@ -157,9 +157,9 @@ def append_GO_clusters_to_depth_df(sim_matrix_cache_folder, depth_df, figpath, l
         #d['Top_GO_Cluster'] = d.groupby('GO_Cluster')['Combined FDR'].transform(lambda x: x == x.min())
         # For cases where there are multiple True values (ties), keep only the first occurrence # doesn't work?
         #d['Top_GO_Cluster'] = d.groupby('GO_Cluster').apply(lambda x: x.assign(Top_GO_Cluster=(x['Top_GO_Cluster'].cumsum() == 1))).reset_index(drop=True)['Top_GO_Cluster']
-        
-        lastcols = ["Configurations","Genes"]
-        cols = [col for col in d.columns if col not in lastcols] + lastcols
+        lastcols = ["Configurations", "Genes"]
+        cols = [col for col in d.columns if col not in lastcols] + ["Configurations"]
+        if "Genes" in d: cols += ["Genes"]
         d = d[cols]
         return d
 
