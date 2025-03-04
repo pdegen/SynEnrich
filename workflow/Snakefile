@@ -182,17 +182,18 @@ rule combine_results_from_different_libraries:
         python workflow/scripts/combine_libs.py 
         """
 
-rule get_go_sem_sim_matrices:
-    input: 
-        depth_files=depth_output_GO_files,
-    output:
-        outfile = semsim_out,
-    conda:
-        "envs/environment.clusterprofiler.yaml"
-    shell:
-        """
-        Rscript workflow/scripts/gosemsim.R {input.depth_files} {organismKEGG} {cachepath} {qval}
-        """
+if go_sem_sim:
+    rule get_go_sem_sim_matrices:
+        input: 
+            depth_files=depth_output_GO_files,
+        output:
+            outfile = semsim_out,
+        conda:
+            "envs/environment.clusterprofiler.yaml"
+        shell:
+            """
+            Rscript workflow/scripts/gosemsim.R {input.depth_files} {organismKEGG} {cachepath} {qval}
+            """
 
 rule append_GO_clusters_to_depth_df:
     input:

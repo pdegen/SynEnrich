@@ -167,10 +167,15 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
                 else:
                     tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
 
+                if isGO and "Ontology" in tab:
+                    tab.rename({"Ontology":"ONTOLOGY"}, axis=1, inplace=True)
+                
+
         ### Combine results
         cols = ["enrichmentScore","pvalue","qvalue","Description","Direction"]
         if isGO:
             cols += ["ONTOLOGY"]
+    
         dfs = [d[cols] for d in tab_dict.values()]
         summary_df = combine_results(dfs, isGO)
         summary_df.to_csv(output_files_lib, index=True)
