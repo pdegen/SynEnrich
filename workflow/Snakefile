@@ -9,9 +9,9 @@ input_file = config["input_file"]
 project_name = config["project_name"]
 metrics = config["metrics"]
 
-libraries = config["libraries"] # either "GO", "KEGG", or path to gmt file
+libraries = config["libraries"]  # either "GO", "KEGG", or path to gmt file
 lib_names = {os.path.splitext(os.path.basename(l))[0]: l for l in libraries}
-for l in lib_names: 
+for l in lib_names:
     assert "." not in l
 
 tools = config["tools"]
@@ -52,15 +52,25 @@ summary_dict_output = (
 all_intermediate_outputs = expand(
     gsea_output, metric=metrics, library=lib_names.keys(), tool=tools
 )  # [t for t in tools if t != "string"])
-final_configurations_outputs = expand(combined_configurations_output, library=lib_names.keys())
+final_configurations_outputs = expand(
+    combined_configurations_output, library=lib_names.keys()
+)
 final_depth_outputs = expand(depth_output, library=lib_names.keys())
 
 if make_figs:
-    lollipop_plots = (f"results/{project_name}/figures/lollipop.{{library}}.{project_name}.{{ext}}")
-    bar_plots = (f"results/{project_name}/figures/bars.{project_name}.{{ext}}")
-    upset_plots = (f"results/{project_name}/figures/upset.{{library}}.{project_name}.{{ext}}")
-    venn_metric = (f"results/{project_name}/figures/venn.metriccomp.{project_name}.{{ext}}")
-    venn_method = (f"results/{project_name}/figures/venn.methodcomp.{project_name}.{{ext}}")
+    lollipop_plots = (
+        f"results/{project_name}/figures/lollipop.{{library}}.{project_name}.{{ext}}"
+    )
+    bar_plots = f"results/{project_name}/figures/bars.{project_name}.{{ext}}"
+    upset_plots = (
+        f"results/{project_name}/figures/upset.{{library}}.{project_name}.{{ext}}"
+    )
+    venn_metric = (
+        f"results/{project_name}/figures/venn.metriccomp.{project_name}.{{ext}}"
+    )
+    venn_method = (
+        f"results/{project_name}/figures/venn.methodcomp.{project_name}.{{ext}}"
+    )
 
     all_bars = expand(bar_plots, ext=fig_formats)
     all_vennmetric = expand(venn_metric, ext=fig_formats)
@@ -77,13 +87,21 @@ if go_sem_sim:
     )
     go_libraries = [lib for lib in lib_names.keys() if lib.startswith("GO")]
     depth_output_GO_files = expand(depth_output_GO, library=go_libraries)
-    subontologies = ["BP","CC","MF"]
-    semsim_out = expand(f"{cachepath}/sim_matrix_{{subontology}}.csv", subontology=subontologies)
-    go_heatmaps = (os.path.join("results",project_name,"figures",f"go.heat.{{subont}}.{{lib}}.{project_name}.png"))
+    subontologies = ["BP", "CC", "MF"]
+    semsim_out = expand(
+        f"{cachepath}/sim_matrix_{{subontology}}.csv", subontology=subontologies
+    )
+    go_heatmaps = os.path.join(
+        "results",
+        project_name,
+        "figures",
+        f"go.heat.{{subont}}.{{lib}}.{project_name}.png",
+    )
     all_go_heatmaps = expand(go_heatmaps, subont=subontologies, lib=go_libraries)
 else:
     semsim_out = []
     all_go_heatmaps = []
+
 
 # Define the final target files based on the method selected
 rule all:
@@ -124,7 +142,7 @@ rule run_clusterprofiler:
     conda:
         "envs/environment.clusterprofiler.yaml"
     params:
-        library_name = lambda wildcards: lib_names[wildcards.library],
+        library_name=lambda wildcards: lib_names[wildcards.library],
     shell:
         """
         echo Running ClusterProfiler with: {wildcards} 
@@ -143,7 +161,7 @@ rule run_gseapy:
             else ""
         ),
     params:
-        library_name = lambda wildcards: lib_names[wildcards.library],
+        library_name=lambda wildcards: lib_names[wildcards.library],
     conda:
         "envs/environment.yaml"
     shell:
@@ -182,18 +200,21 @@ rule combine_results_from_different_libraries:
         python workflow/scripts/combine_libs.py 
         """
 
+
 if go_sem_sim:
+
     rule get_go_sem_sim_matrices:
-        input: 
+        input:
             depth_files=depth_output_GO_files,
         output:
-            outfile = semsim_out,
+            outfile=semsim_out,
         conda:
             "envs/environment.clusterprofiler.yaml"
         shell:
             """
             Rscript workflow/scripts/gosemsim.R {input.depth_files} {organismKEGG} {cachepath} {qval}
             """
+
 
 rule append_GO_clusters_to_depth_df:
     input:
@@ -207,11 +228,13 @@ rule append_GO_clusters_to_depth_df:
         python3 workflow/scripts/clustering.py # note: this updates depth_df
         """
 
+
 # TO DO: make rule finalize_combined_outputs that saves depth_df, summary_dict after GOSemSim; for now use snakemake --touch as workaround
+
 
 rule make_plots:
     input:
-        all_go_heatmaps,    
+        all_go_heatmaps,
         summary_dict_output,
     output:
         all_figs,
