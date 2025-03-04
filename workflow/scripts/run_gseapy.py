@@ -9,55 +9,57 @@ from typing import Union
 
 from utils import read_gmt
 
+
 def convert_gseapy_table(tab: pd.DataFrame, ont_id: str) -> None:
-    '''Convert GSEApy columns to match clusterProfiler'''
-    tab.rename({"NOM p-val": "pvalue", "ES": "enrichmentScore", 
-                "FDR q-val": "qvalue"}, axis=1, inplace=True) # dubious combining scores?
+    """Convert GSEApy columns to match clusterProfiler"""
+    tab.rename(
+        {"NOM p-val": "pvalue", "ES": "enrichmentScore", "FDR q-val": "qvalue"}, axis=1, inplace=True
+    )  # dubious combining scores?
 
     print("ont_id", ont_id)
 
     if ont_id == "KEGG":
         tab.rename({"Term": "Description"}, axis=1, inplace=True)
-        tab["ID"] = tab["Description"] # gseapy doesn't save KEGG id, hence use description
+        tab["ID"] = tab["Description"]  # gseapy doesn't save KEGG id, hence use description
     elif ont_id == "GO":
         print(tab.head())
         tab["ID"] = "GO:" + tab["Term"].str.split("\\(GO:").str[1].str[:-1]
     else:
         try:
-            tab.rename({"Term":"ID"}, axis=1, inplace=True)
+            tab.rename({"Term": "ID"}, axis=1, inplace=True)
         except KeyError:
             pass
-    
+
     if "ID" not in tab.columns:
         raise Exception("ID not found in results table, make sure gmt file has column called 'ID' or 'Term'")
-    
+
     tab.set_index("ID", inplace=True, drop=True)
 
-def run_gseapy_multi(   
-    tab: pd.DataFrame, 
-    metric: str, 
-    ontology: str, # "GO", "KEGG", Enrichr library, or gmt file
+
+def run_gseapy_multi(
+    tab: pd.DataFrame,
+    metric: str,
+    ontology: str,  # "GO", "KEGG", Enrichr library, or gmt file
     organismKEGG: str = "",
-    outdir: str = "", 
+    outdir: str = "",
     outfile: str = "",
     overwrite: bool = False,
-
-    **kwargs) -> None:
-
+    **kwargs,
+) -> None:
     if metric not in tab.columns:
         if metric == "neg_signed_logpval":
             tab["neg_signed_logpval"] = -np.sign(tab["logFC"]) * np.log10(tab["PValue"])
         else:
             raise Exception(f"Metric not in input table: {metric}")
-        
+
     input = tab[metric].sort_values(ascending=False)
-    input.index.name = None # remove header
+    input.index.name = None  # remove header
 
     print("Running:", ontology)
 
     if ontology == "GO":
         ont_id = "GO"
-        ontology = ["GO_Biological_Process_2023","GO_Cellular_Component_2023","GO_Molecular_Function_2023"]
+        ontology = ["GO_Biological_Process_2023", "GO_Cellular_Component_2023", "GO_Molecular_Function_2023"]
     elif ontology == "KEGG" and organismKEGG == "hsa":
         ont_id = "KEGG"
         ontology = "KEGG_2021_Human"
@@ -79,9 +81,9 @@ def run_gseapy_multi(
         res_merged = res.res2d
         gmt_df = read_gmt(ontology)
         gmt_df.set_index("ID", inplace=True)
-        res_merged = res_merged.merge(gmt_df[['Description','Category']], left_on="Term", right_index=True, how='left')
+        res_merged = res_merged.merge(gmt_df[["Description", "Category"]], left_on="Term", right_index=True, how="left")
         res_merged.drop("Ontology", axis=1, inplace=True)
-        res_merged.rename({"Category":"ONTOLOGY"}, axis=1, inplace=True)
+        res_merged.rename({"Category": "ONTOLOGY"}, axis=1, inplace=True)
 
     elif ont_id == "GO":
         res_list = []
@@ -103,23 +105,27 @@ def run_gseapy_multi(
     res_merged.to_csv(outfile)
 
 
-def run_gseapy(input: Union[pd.DataFrame, pd.Series], 
-               ontology: str, 
-               outdir: str,
-               min_size: int = 10,
-               max_size: int = 500,
-               permutation_num: int = 1000,
-               **kwargs):
-
-    res = gseapy.prerank(rnk=input, 
-                          gene_sets=ontology, 
-                          outdir=None, 
-                          min_size=min_size,
-                          max_size=max_size,
-                          permutation_num=permutation_num,
-                          **kwargs)
+def run_gseapy(
+    input: Union[pd.DataFrame, pd.Series],
+    ontology: str,
+    outdir: str,
+    min_size: int = 10,
+    max_size: int = 500,
+    permutation_num: int = 1000,
+    **kwargs,
+):
+    res = gseapy.prerank(
+        rnk=input,
+        gene_sets=ontology,
+        outdir=None,
+        min_size=min_size,
+        max_size=max_size,
+        permutation_num=permutation_num,
+        **kwargs,
+    )
     res.res2d["Ontology"] = ontology
     return res
+
 
 def main() -> None:
     tab = pd.read_csv(input_file, index_col=0)
@@ -127,23 +133,22 @@ def main() -> None:
     if tab.index.name != "SYMBOL":
         gene_table = pd.read_csv(gene_table_file, index_col=0)
         tab[keytype] = tab.index
-        tab = tab.merge(gene_table, how='left', on=keytype)
+        tab = tab.merge(gene_table, how="left", on=keytype)
         tab.dropna(axis=0, inplace=True)
         tab.set_index("SYMBOL", inplace=True)
 
     # https://gseapy.readthedocs.io/en/latest/faq.html#q-why-gene-symbols-in-enrichr-library-are-all-upper-cases-for-mouse-fly-fish-worm
-    tab.index = tab.index.str.upper() # Enrichr supports only upper case
+    tab.index = tab.index.str.upper()  # Enrichr supports only upper case
     run_gseapy_multi(tab, metric=metric, ontology=ontology, organismKEGG=organismKEGG, outfile=outfile)
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     input_file = sys.argv[1]
     keytype = sys.argv[2]
     organismKEGG = sys.argv[3]
     gene_table_file = sys.argv[4]
     metric = sys.argv[5]
-    ontology = sys.argv[6] # either "GO", "KEGG", Enrichr library, or path to gmt file
+    ontology = sys.argv[6]  # either "GO", "KEGG", Enrichr library, or path to gmt file
     outfile = sys.argv[7]
 
     main()
-

@@ -2,33 +2,38 @@ import pandas as pd
 from collections import defaultdict
 from typing import List, Dict, Set, Any, DefaultDict
 
-def get_sig_dict(summary_df: pd.DataFrame, 
-                 tools: List[str], 
-                 metrics: List[str], 
-                 qval: float,
-                 verbose: bool = False
-                 ) -> Dict[Any, Any]:
 
+def get_sig_dict(
+    summary_df: pd.DataFrame, tools: List[str], metrics: List[str], qval: float, verbose: bool = False
+) -> Dict[Any, Any]:
     sig_dict: Dict = {t: {m: set() for m in metrics} for t in tools}
 
     for tool in tools:
         for metric in metrics:
+            terms = summary_df[(tool, metric, "qvalue")].dropna()
+            direction = summary_df[(tool, metric, "Direction")].dropna()
 
-            terms = summary_df[(tool,metric,"qvalue")].dropna()
-            direction = summary_df[(tool,metric,"Direction")].dropna()
-
-
-            sig = terms[terms<qval]
-            if (verbose):
-                print(tool, metric, "Terms tested:", len(terms), "Significant:",  len(sig))
-            sig_dict[tool][metric] = set((sig.index + "_" + direction.loc[sig.index] + " | " + summary_df.loc[sig.index,("nan","nan","Description")]))
+            sig = terms[terms < qval]
+            if verbose:
+                print(tool, metric, "Terms tested:", len(terms), "Significant:", len(sig))
+            sig_dict[tool][metric] = set(
+                (
+                    sig.index
+                    + "_"
+                    + direction.loc[sig.index]
+                    + " | "
+                    + summary_df.loc[sig.index, ("nan", "nan", "Description")]
+                )
+            )
 
     return sig_dict
+
 
 def count_combinations(d) -> int:
     if not isinstance(d, Dict):
         return 1
     return sum(count_combinations(v) for v in d.values())
+
 
 def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
     """
@@ -43,6 +48,7 @@ def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
 
     intersection_depth: DefaultDict = defaultdict(int)
     factors_for_element: DefaultDict = defaultdict(list)
+
     def calculate_depth_factors(nested_dict, factor_list):
         for factor, sub_dict in nested_dict.items():
             new_factors = factor_list + [factor]
@@ -52,6 +58,7 @@ def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
                     factors_for_element[elem].append(new_factors)
             else:
                 calculate_depth_factors(sub_dict, new_factors)
+
     calculate_depth_factors(nested_dict, [])
 
     # Cleanup
@@ -62,20 +69,21 @@ def create_intersection_depth_df(nested_dict: Dict[Dict, Set]) -> pd.DataFrame:
 
     depth_df = pd.DataFrame(intersection_depth.values(), index=intersection_depth.keys(), columns=["Depth"])
     depth_df.sort_values(by="Depth", ascending=False, inplace=True)
-    factors_df = pd.DataFrame(factors_for_element.values(), index=factors_for_element.keys(), columns=["Configurations"])
-    depth_df = pd.concat([depth_df,factors_df], axis=1)
+    factors_df = pd.DataFrame(
+        factors_for_element.values(), index=factors_for_element.keys(), columns=["Configurations"]
+    )
+    depth_df = pd.concat([depth_df, factors_df], axis=1)
 
     combos = count_combinations(nested_dict)
     depth_df["RelativeDepth"] = depth_df["Depth"] / combos
 
     if len(depth_df) < 1:
         print("No significant terms found!")
-        return pd.DataFrame(columns=["Description","Depth","RelativeDepth","Configurations"])
-    
+        return pd.DataFrame(columns=["Description", "Depth", "RelativeDepth", "Configurations"])
+
     if " | " in depth_df.index[0]:
         depth_df["Description"] = depth_df.index.str.split("|").str[1]
         depth_df.index = depth_df.index.str.split("|").str[0]
-        return depth_df[["Description","Depth","RelativeDepth","Configurations"]]
-    
-    return depth_df[["Depth","RelativeDepth","Configurations"]]
-    
+        return depth_df[["Description", "Depth", "RelativeDepth", "Configurations"]]
+
+    return depth_df[["Depth", "RelativeDepth", "Configurations"]]
