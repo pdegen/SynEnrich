@@ -20,6 +20,10 @@ make_figs = config["make_figs"]
 qval = config["qval"]
 savepath = os.path.join("results", project_name)
 cachepath = os.path.join(savepath, ".cache")
+string_api_key = config["string_api_key"]
+
+if string_api_key in ["", None]:
+    string_api_key = "_"  # avoid empty arg when calling from CLI
 
 fig_formats = config["fig_formats"]
 if not isinstance(fig_formats, list):
@@ -128,6 +132,25 @@ rule run_geneconverter:
         Rscript workflow/scripts/run_geneconverter.R {input} {keytype} {organismKEGG} {gene_converter}
         """
 
+rule run_string:
+    input:
+        infile=input_file,
+        g=gene_converter,
+    output:
+        outfile=(
+            f"results/{project_name}/syn.string.{{metric}}.{{library}}.{project_name}.csv"
+            if "string" in tools
+            else ""
+        ),
+    conda:
+        "envs/environment.yaml"
+    params:
+        library_name=lambda wildcards: lib_names[wildcards.library],
+    shell:
+        """
+        python workflow/scripts/run_string.py {input.infile} {string_api_key} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {params.library_name} {output.outfile}
+        """
+
 
 rule run_clusterprofiler:
     input:
@@ -145,7 +168,7 @@ rule run_clusterprofiler:
         library_name=lambda wildcards: lib_names[wildcards.library],
     shell:
         """
-        echo Running ClusterProfiler with: {wildcards} 
+        echo Running ClusterProfiler with: {wildcards}
         Rscript workflow/scripts/run_clusterprofiler.R {input.infile} {organismKEGG} {gene_converter} {wildcards.metric} {params.library_name} {output.outfile} {keytype} {keytype_gmt}
         """
 
@@ -166,7 +189,7 @@ rule run_gseapy:
         "envs/environment.yaml"
     shell:
         """
-        echo Running GSEApy with: {wildcards} 
+        echo Running GSEApy with: {wildcards}
 
         python workflow/scripts/run_gseapy.py {input.infile} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {params.library_name} {output.outfile}
         """
@@ -197,7 +220,7 @@ rule combine_results_from_different_libraries:
         "envs/environment.yaml"
     shell:
         """
-        python workflow/scripts/combine_libs.py 
+        python workflow/scripts/combine_libs.py
         """
 
 
