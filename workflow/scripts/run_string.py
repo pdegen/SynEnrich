@@ -1,5 +1,6 @@
 # scripts/rung_string.py
 
+import os
 import sys
 import requests
 import json
@@ -8,8 +9,6 @@ from pathlib import Path
 
 import pandas as pd
 from typing import Optional
-
-from utils import pickler
 
 
 def check_api_key(key: Optional[str]) -> str:
@@ -104,7 +103,7 @@ def prepare_string_input(path: str, metric: str) -> None:
     tab.to_csv(formatted_path, sep="\t", header=False)
 
 
-def run_string_enrichment(input_path: str, api_key: str, species: int) -> str | None:
+def run_string_enrichment(input_path: str, api_key: str, species: int, fdr: float = 0.05) -> str | None:
     string_api_url = "https://version-12-0.string-db.org/api"
     output_format = "json"
     method = "valuesranks_enrichment_submit"
@@ -124,7 +123,7 @@ def run_string_enrichment(input_path: str, api_key: str, species: int) -> str | 
         "caller_identity": "www.awesome_app.org",
         "identifiers": identifiers,
         "api_key": api_key,
-        "ge_fdr": 0.05,
+        "ge_fdr": fdr,
         "ge_enrichment_rank_direction": -1
     }
 
@@ -154,7 +153,7 @@ def check_job_status(api_key: str, job_id: str) -> dict:
     return response_dict
 
 
-def main(input_path: str, key: str, metric: str, library: str, outfile: str) -> None:
+def main(input_path: str, key: str, metric: str, outfile: str, fdr: float = 0.05) -> None:
 
     api_key = check_api_key(key)
 
@@ -170,33 +169,58 @@ def main(input_path: str, key: str, metric: str, library: str, outfile: str) -> 
         case _:
             raise Exception(f"Organism not supported: {organism_kegg}")
 
-    job_id = run_string_enrichment(input_path, api_key, species)
+    outfile_response = outfile.replace(".csv", ".response.json").replace("_PLACEHOLDER_.", "")
+    print(outfile_response)
+    if os.path.isfile(outfile_response):
+        with open(outfile_response) as f:
+            response_dict = json.load(f)
+        if "job_id" in response_dict:
+            job_id = response_dict["job_id"]
+
+            while True:
+                print(f"Found existing job_id: {job_id}. Send new STRING Job? [y / n]")
+                res = input()
+                if res.lower() == "y":
+                    job_id = run_string_enrichment(input_path, api_key, species, fdr)
+                    break
+                elif res.lower() == "n":
+                    print("Using existing job id")
+                    break
+
+    else:
+        job_id = run_string_enrichment(input_path, api_key, species, fdr)
 
     if job_id is None:
         raise Exception("No job ID found. Abborting...")
 
-    # TO DO: async
     time_waited = 0
     while time_waited < 3600:
-        time.sleep(15)
-        time_waited += 15
+        if time_waited % 20 == 0:
+            response_dict = check_job_status(api_key, job_id)
 
-        response_dict = check_job_status(api_key, job_id)
+            if "status" in response_dict:
+                with open(outfile_response, 'w', encoding='utf-8') as f:
+                    json.dump(response_dict, f, ensure_ascii=False, indent=4)
+                if response_dict["status"] == "success":
+                    break
+            elif "status" in response_dict and response_dict["status"] == "failed":  # TO DO: check if this is correct
+                raise Exception("STRING analysis failed. Abborting...")
 
-        if "status" in response_dict and response_dict["status"] == "success":
-            break
-        elif "status" in response_dict and response_dict["status"] == "failed":  # TO DO: check if this is correct
-            raise Exception("STRING analysis failed. Abborting...")
+        time.sleep(1)
+        time_waited += 1
+        if response_dict and 'message' in response_dict:
+            print(f"\rTime elapsed: {time_waited}s, status: {response_dict['message']}", end='', flush=True)
+
     else:
         raise Exception("STRING analysis not completed after 3600 seconds. Abborting...")
 
-    pickler(response_dict, outfile.replace(".csv", ".response.txt"))
     download_url = response_dict['download_url']
     df = pd.read_csv(download_url, sep='\t', index_col=0)
 
-    df = format_string_table(df, library=library)
-
-    df.to_csv(outfile)
+    for library in ["KEGG", "GO"]:
+        outfile_lib = outfile.replace("_PLACEHOLDER_", library)
+        df_lib = format_string_table(df, library=library)
+        df_lib.to_csv(outfile_lib)
 
 
 if __name__ == "__main__":
@@ -206,7 +230,7 @@ if __name__ == "__main__":
     organism_kegg = sys.argv[4]
     gene_table_file = sys.argv[5]
     metric = sys.argv[6]
-    ontology = sys.argv[7]  # either "GO" or "KEGG"
-    outfile = sys.argv[8]
+    outfile = sys.argv[7]
+    fdr = float(sys.argv[8])
 
-    main(input_file, api_key, metric, ontology, outfile)
+    main(input_file, api_key, metric, outfile, fdr)
