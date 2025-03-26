@@ -16,7 +16,7 @@ from scripts.utils import load_config
 
 def stouffer_combined_p_value(
     p_values: Union[List[float], np.ndarray], weights: Optional[Union[List[float], np.ndarray]] = None
-) -> float:
+) -> np.ndarray:
     if weights is None:
         weights = [1] * len(p_values)
     else:
@@ -95,7 +95,7 @@ def combine_results(dfs, isGO: bool = False) -> pd.DataFrame:
     else:
         lvl2[-1] = "Description"
 
-    tuples = list(zip(*[lvl0, lvl1, lvl2]))
+    tuples = list(zip(*[lvl0, lvl1, lvl2], strict=True))
     summary_df.columns = pd.MultiIndex.from_tuples(tuples, names=["Tool", "Metric", "Value"])
 
     return summary_df
@@ -132,7 +132,7 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
     os.system(f"cp {orig_config_file} {config_file}")
     config = load_config(config_file)
 
-    metrics = config.get("metrics", [])
+    # metrics = config.get("metrics", [])
     libraries = config.get("libraries", [])
     tools = config.get("tools", [])
 
@@ -149,8 +149,8 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
         if library.endswith(".gmt"):
             library = library.split(".gmt")[0]
 
-        tab_dict = dict()
-        output_files_lib = [o for o in output_files if library in o][0]  # TO DO: careful
+        tab_dict = {}
+        output_files_lib = next(o for o in output_files if library in o)  # TO DO: careful
 
         isGO = library.startswith("GO")  # TO DO: careful
 
@@ -169,7 +169,8 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
                 tab = format_table(tab, tool, metric, library)
                 tab_dict[tab.index.name] = tab
 
-                # string contains terms enriched in "both" directions; also top referst to negative value rankings and vice versa
+                # string contains terms enriched in "both" directions;
+                # also top refers to negative value rankings and vice versa
                 if tool.lower() == "string":
                     tab["Direction"] = tab["direction"].apply(
                         lambda x: "Up" if x == "bottom" else "Down" if x == "top" else "Both"
@@ -180,7 +181,7 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
                 if isGO and "Ontology" in tab:
                     tab.rename({"Ontology": "ONTOLOGY"}, axis=1, inplace=True)
 
-        ### Combine results
+        # Combine results
         cols = ["enrichmentScore", "pvalue", "qvalue", "Description", "Direction"]
         if isGO:
             cols += ["ONTOLOGY"]

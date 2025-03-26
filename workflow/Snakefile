@@ -18,6 +18,7 @@ tools = config["tools"]
 save_summary_dict = config["save_summary_dict"]
 make_figs = config["make_figs"]
 qval = config["qval"]
+fdr = config["FDR"]
 savepath = os.path.join("results", project_name)
 cachepath = os.path.join(savepath, ".cache")
 string_api_key = config["string_api_key"]
@@ -132,23 +133,22 @@ rule run_geneconverter:
         Rscript workflow/scripts/run_geneconverter.R {input} {keytype} {organismKEGG} {gene_converter}
         """
 
+# String runs with a fixed set of libraries
+# Retruns one df with all libraries; we will split manually into GO, KEGG
 rule run_string:
     input:
         infile=input_file,
         g=gene_converter,
     output:
-        outfile=(
-            f"results/{project_name}/syn.string.{{metric}}.{{library}}.{project_name}.csv"
-            if "string" in tools
-            else ""
-        ),
+        f"results/{project_name}/syn.string.{{metric}}.GO.{project_name}.csv" if ( "string" in tools and "GO" in lib_names.keys() ) else [],
+        f"results/{project_name}/syn.string.{{metric}}.KEGG.{project_name}.csv" if ( "string" in tools and "KEGG" in lib_names.keys() ) else [],
     conda:
         "envs/environment.yaml"
     params:
-        library_name=lambda wildcards: lib_names[wildcards.library],
+        outfile_no_lib = lambda wildcards: f"results/{project_name}/syn.string.{wildcards.metric}._PLACEHOLDER_.{project_name}.csv",
     shell:
         """
-        python workflow/scripts/run_string.py {input.infile} {string_api_key} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {params.library_name} {output.outfile}
+        python workflow/scripts/run_string.py {input.infile} {string_api_key} {keytype} {organismKEGG} {gene_converter} {wildcards.metric} {params.outfile_no_lib} {fdr}
         """
 
 
