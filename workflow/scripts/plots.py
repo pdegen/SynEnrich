@@ -205,7 +205,7 @@ def make_venn_plots(
     else:
         fig, ax = plt.subplots(len(lib_names), len(tools), figsize=(len(tools) * 4, len(lib_names.keys()) * 4))
 
-        if len(lib_names) == 1:
+        if len(lib_names) == 1 or len(tools) == 1:
             ax = np.expand_dims(ax, axis=0).T
 
         for i, lib in enumerate(lib_names.keys()):
@@ -457,7 +457,7 @@ if __name__ == "__main__":
         config = yaml.safe_load(stream)
 
     libraries = config.get("libraries", [])
-    lib_names = {os.path.splitext(os.path.basename(lib))[0]: lib for lib in libraries}
+    lib_names = config.get("lib_names", {})
 
     tools = config.get("tools", [])
     metrics = config.get("metrics", [])

@@ -10,10 +10,7 @@ project_name = config["project_name"]
 metrics = config["metrics"]
 
 libraries = config["libraries"]  # either "GO", "KEGG", or path to gmt file
-lib_names = {os.path.splitext(os.path.basename(l))[0]: l for l in libraries}
-for l in lib_names:
-    assert "." not in l
-
+lib_names = config["lib_names"]
 tools = config["tools"]
 save_summary_dict = config["save_summary_dict"]
 make_figs = config["make_figs"]

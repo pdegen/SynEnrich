@@ -1,13 +1,14 @@
-run_clusterProfiler <- function(df, outfile,
+run_clusterProfiler <- function(df,
+                                outfile,
                                 metric,
                                 library_,
                                 organism.KEGG,
-                                organism.GO, 
-                                overwrite=FALSE, 
+                                organism.GO,
+                                overwrite=FALSE,
                                 minGSSize = 10,
                                 maxGSSize = 500,
                                 seed=1234,
-                                keytype_gmt = "SYMBOL") 
+                                keytype_gmt = "SYMBOL")
 {
   set.seed(seed)
 
@@ -60,7 +61,7 @@ run_clusterProfiler <- function(df, outfile,
               verbose = FALSE)
 
     ego3 <- merge(ego3, TERM2CAT, by.x = "ID", by.y = "term", all.x = TRUE, row.names = "ID")
-    write.csv(ego3,outfile, row.names=FALSE)
+    write.csv(ego3, outfile, row.names=FALSE)
     print(paste("Wrote ClusterProfiler output to:", outfile))
 
   } else if ((library_=="GO" && !file.exists(outfile)) || overwrite) {
@@ -163,6 +164,6 @@ if (!interactive()) {
 
   df <- convert_df(df, keytype_in=keytype, gene_converter_file, keytype_target=keytype_gmt)
   #print(head(df))
-  run_clusterProfiler(df, outfile, metric, library_, overwrite=FALSE, organism.KEGG=organismKEGG, organism.GO = OrgDb, keytype_gmt=keytype_gmt) 
+  run_clusterProfiler(df, outfile, metric, library_, overwrite=FALSE, organism.KEGG=organismKEGG, organism.GO = OrgDb, keytype_gmt=keytype_gmt)
 
 }

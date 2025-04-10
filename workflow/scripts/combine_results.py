@@ -148,11 +148,17 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
     for library in libraries:
         if library.endswith(".gmt"):
             library = library.split(".gmt")[0]
+        if library.startswith("GO_"):
+            library = "GO"  # TO DO: careful
 
         tab_dict = {}
+        a = [o for o in output_files if library in o]
+        print(22)
+        print(a)
+        print(23)
         output_files_lib = next(o for o in output_files if library in o)  # TO DO: careful
 
-        isGO = library.startswith("GO")  # TO DO: careful
+        is_go = library == "GO"
 
         for tool in tools:
             for file in input_files:
@@ -178,16 +184,16 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
                 else:
                     tab["Direction"] = tab["enrichmentScore"].apply(lambda x: "Up" if x > 0 else "Down")
 
-                if isGO and "Ontology" in tab:
+                if is_go and "Ontology" in tab:
                     tab.rename({"Ontology": "ONTOLOGY"}, axis=1, inplace=True)
 
         # Combine results
         cols = ["enrichmentScore", "pvalue", "qvalue", "Description", "Direction"]
-        if isGO:
+        if is_go:
             cols += ["ONTOLOGY"]
 
         dfs = [d[cols] for d in tab_dict.values()]
-        summary_df = combine_results(dfs, isGO)
+        summary_df = combine_results(dfs, is_go)
         summary_df.to_csv(output_files_lib, index=True)
 
 

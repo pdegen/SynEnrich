@@ -54,10 +54,10 @@ def format_depth_df(
         pd.DataFrame([f"No terms found for {lib}"]).to_csv(outfile)
         return d
 
-    isGO = d.index[0].startswith("GO:")
+    is_go = d.index[0].startswith("GO:")
 
     # Append GO sub-ontology
-    if isGO:
+    if is_go:
         d["ID"] = d.index.str.split("_").str[0]
         ont = pd.DataFrame(summary_df[("nan", "nan", "ONTOLOGY")].values, index=summary_df.index, columns=["ONTOLOGY"])
         d = d.merge(ont["ONTOLOGY"], left_on="ID", right_index=True, how="left")
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         config = yaml.safe_load(stream)
 
     libs = config.get("libraries", [])
-    lib_names = {lib.split(".gmt")[0]: lib for lib in libs}
+    lib_names = config.get("lib_names", {})
     tools = config.get("tools", [])
     metrics = config.get("metrics", [])
     project_name = config.get("project_name")

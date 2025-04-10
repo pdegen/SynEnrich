@@ -218,8 +218,8 @@ def main(input_path: str, key: str, metric: str, outfile: str, fdr: float = 0.05
     df = pd.read_csv(download_url, sep='\t', index_col=0)
 
     for library in ["KEGG", "GO"]:
-        outfile_lib = outfile.replace("_PLACEHOLDER_", library)
         df_lib = format_string_table(df, library=library)
+        outfile_lib = outfile.replace("_PLACEHOLDER_", library)
         df_lib.to_csv(outfile_lib)
 
 
