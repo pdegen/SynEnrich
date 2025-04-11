@@ -50,14 +50,14 @@ def plot_venn(sig_dict, tools, metrics, ax=None, pretty_print=None):
     # idx = pd.IndexSlice
     # summary_df.loc[:, idx[tools, metrics, "qvalue"]]
 
-    toolIsTopLevel = len(tools) < len(metrics)
+    tool_is_top_level = len(tools) < len(metrics)
 
     sets, labels = [], []
     for tool in tools:
         for metric in metrics:
             s = sig_dict[tool][metric]
             sets.append(s)
-            labels.append(metric if toolIsTopLevel else tool)
+            labels.append(metric if tool_is_top_level else tool)
             if pretty_print:  # pretty print labels
                 if labels[-1] in pretty_print:
                     labels[-1] = pretty_print[labels[-1]]
@@ -71,7 +71,7 @@ def plot_venn(sig_dict, tools, metrics, ax=None, pretty_print=None):
         elif len(sets) == 3:
             venn3(sets, set_labels=labels, ax=ax)
 
-    plt.title(tool if toolIsTopLevel else metric)
+    plt.title(tool if tool_is_top_level else metric)
 
     if not ax:
         return fig
@@ -84,11 +84,13 @@ def make_bar_plots(
     lib_names: Dict,
     pretty_print: Dict,
     qval: float = 0.05,
-    palette=npg_palette(),
+    palette=None,
     max_depth: int = 0,
     ext: str = "pdf",
 ):
     sns.set_theme(font_scale=1.2)
+    if palette is None:
+        palette = npg_palette()
 
     nlib = len(lib_names.keys())
 
@@ -96,9 +98,9 @@ def make_bar_plots(
         fig, axes = plt.subplots(2, nlib, figsize=(nlib * 5, 10))
     axes = axes.flatten()
 
-    ### Intersection depth
+    # Intersection depth
 
-    for ax, lib in zip(axes[:nlib], lib_names.keys()):
+    for ax, lib in zip(axes[:nlib], lib_names.keys(), strict=False):
         depth_df = summary_dict[lib]["depth_df"]
         if len(depth_df) < 1:
             print(f"No terms found for {lib}")
@@ -118,9 +120,9 @@ def make_bar_plots(
         ax.set_xlim(0.25, xmax + 0.75)
         ax.grid(axis="x")
 
-    ### Number of terms
+    # Number of terms
 
-    for ax, lib in zip(axes[nlib:], lib_names.keys()):
+    for ax, lib in zip(axes[nlib:], lib_names.keys(), strict=False):
         summary_df = summary_dict[lib]["summary_df"]
         qv = summary_df.drop(["Combined", "nan"], axis=1, level=0)
         qv = qv.xs("qvalue", level=2, axis=1)
@@ -220,7 +222,7 @@ def make_venn_plots(
 
 
 def make_upset_plots(
-    summary_dict: Dict, lib_names: Dict, figpath: str, project_name: str, pretty_print: Dict = {}, ext: str = "pdf"
+    summary_dict: Dict, lib_names: Dict, figpath: str, project_name: str, pretty_print: Dict, ext: str = "pdf"
 ):
     for lib in lib_names.keys():
         outfile = f"{figpath}/upset.{lib}.{project_name}.{ext}"
@@ -325,7 +327,7 @@ def lollipop_plots(
         ax.legend(facecolor="white", bbox_to_anchor=(1.01, 1), loc="upper left")
 
     else:
-        ### COLOR BAR
+        # COLOR BAR
         cmap = sns.cubehelix_palette(as_cmap=True)
         norm = plt.Normalize(ordered_df[hue].min(), ordered_df[hue].max())
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -446,7 +448,7 @@ def save_empty(outfile, lib=""):
     if lib != "":
         ax.set_title(f"No terms found for {lib}")
     else:
-        ax.set_title(f"No plot generated")
+        ax.set_title("No plot generated")
     fig.savefig(outfile)
 
 

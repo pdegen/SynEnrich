@@ -19,7 +19,7 @@ def create_summary_dict(
     go_sem_sim: bool = False,
 ) -> Dict:
     libs = lib_names.keys()
-    summary_dict: Dict = {lib: dict() for lib in libs}
+    summary_dict: Dict = {lib: {} for lib in libs}
     for lib in libs:
         summary_df = pd.read_csv(f"{savepath}/syn.combined.{lib}.{project_name}.csv", index_col=0, header=[0, 1, 2])
         summary_df.sort_values(by=("Combined", "nan", "Combined FDR"))

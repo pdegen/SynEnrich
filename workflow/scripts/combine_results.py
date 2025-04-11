@@ -22,8 +22,8 @@ def stouffer_combined_p_value(
     else:
         weights = np.array(weights)
 
-    z_enrichmentScores = norm.ppf(1 - np.array(p_values))
-    weighted_z = np.sum(weights * z_enrichmentScores) / np.sqrt(np.sum(np.array(weights) ** 2))
+    z_enrichment_scores = norm.ppf(1 - np.array(p_values))
+    weighted_z = np.sum(weights * z_enrichment_scores) / np.sqrt(np.sum(np.array(weights) ** 2))
     combined_p_value = norm.cdf(-weighted_z)
     return combined_p_value
 
@@ -35,8 +35,8 @@ def mean_pval(pvals):
     return 10 ** np.nanmean(np.log10(pv))
 
 
-## TO DO: refactor
-def combine_results(dfs, isGO: bool = False) -> pd.DataFrame:
+# TO DO: refactor
+def combine_results(dfs, is_go: bool = False) -> pd.DataFrame:
     combined_df = pd.concat(dfs, axis=1, keys=[d.index.name for d in dfs])
     combined_df.columns = pd.MultiIndex.from_product([combined_df.columns.levels[0], combined_df.columns.levels[1]])
 
@@ -75,7 +75,7 @@ def combine_results(dfs, isGO: bool = False) -> pd.DataFrame:
     summary_df["Description"] = summary_df.loc[:, pd.IndexSlice[:, "Description"]].apply(combine_col, axis=1)
     summary_df.drop("Description", level=1, axis=1, inplace=True)
 
-    if isGO:
+    if is_go:
         summary_df["ONTOLOGY"] = summary_df.loc[:, pd.IndexSlice[:, "ONTOLOGY"]].apply(combine_col, axis=1)
         summary_df.drop("ONTOLOGY", level=1, axis=1, inplace=True)
 
@@ -88,7 +88,7 @@ def combine_results(dfs, isGO: bool = False) -> pd.DataFrame:
 
     lvl0[-1] = "nan"
 
-    if isGO:
+    if is_go:
         lvl0[-2] = "nan"
         lvl2[-2] = "Description"
         lvl2[-1] = "ONTOLOGY"
@@ -152,10 +152,6 @@ def main(savepath: str, output_files: List[str], project_name: str) -> None:
             library = "GO"  # TO DO: careful
 
         tab_dict = {}
-        a = [o for o in output_files if library in o]
-        print(22)
-        print(a)
-        print(23)
         output_files_lib = next(o for o in output_files if library in o)  # TO DO: careful
 
         is_go = library == "GO"
