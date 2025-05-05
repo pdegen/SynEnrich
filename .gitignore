@@ -175,3 +175,5 @@ resources/testdata/string.input*
 
 workflow/notebooks/private*
 *go-basic.obo
+
+secrets/

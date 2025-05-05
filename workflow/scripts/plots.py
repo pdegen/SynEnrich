@@ -79,7 +79,7 @@ def plot_venn(sig_dict, tools, metrics, ax=None, pretty_print=None):
 
 def make_bar_plots(
     summary_dict: Dict,
-    figpath: str,
+    figpath: str | None,
     project_name: str,
     lib_names: Dict,
     pretty_print: Dict,
@@ -167,7 +167,8 @@ def make_bar_plots(
         )
 
     fig.tight_layout()
-    fig.savefig(f"{figpath}/bars.{project_name}.{ext}")
+    if figpath:
+        fig.savefig(f"{figpath}/bars.{project_name}.{ext}")
 
 
 def make_venn_plots(

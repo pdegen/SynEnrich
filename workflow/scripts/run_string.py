@@ -22,6 +22,11 @@ def check_api_key(key: Optional[str]) -> str:
             return answer
         else:
             raise Exception("No STRING API key found or requested. Abborting...")
+    elif key.endswith(".txt"):
+        with open(key, "r") as f:
+            key = f.readline()
+            print("Opened STRING API key from .txt file")
+            return key
     else:
         return key
 
