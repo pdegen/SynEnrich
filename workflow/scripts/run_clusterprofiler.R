@@ -21,6 +21,7 @@ run_clusterProfiler <- function(df,
 
   start_time <- Sys.time()
 
+  df <- df[!duplicated(df[[keytype_gmt]]) & !duplicated(df[[keytype_gmt]], fromLast = TRUE), ]
   geneList <- df[[metric]]
 
   if ((endsWith(library_, ".gmt") && !file.exists(outfile)) || overwrite) {
